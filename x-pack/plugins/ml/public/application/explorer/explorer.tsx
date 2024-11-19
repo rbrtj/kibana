@@ -36,8 +36,8 @@ import { useStorage } from '@kbn/ml-local-storage';
 import { isDefined } from '@kbn/ml-is-defined';
 import type { TimeBuckets } from '@kbn/ml-time-buckets';
 import { dynamic } from '@kbn/shared-ux-utility';
+import type { MlJobWithTimeRange } from '../../../common/types/anomaly_detection_jobs';
 import { HelpPopover } from '../components/help_popover';
-// @ts-ignore
 import { AnnotationsTable } from '../components/annotations/annotations_table';
 import { ExplorerNoJobsSelected, ExplorerNoResultsFound } from './components';
 import { InfluencersList } from '../components/influencers_list';
@@ -147,6 +147,7 @@ interface ExplorerUIProps {
   showCharts: boolean;
   selectedJobsRunning: boolean;
   overallSwimlaneData: OverallSwimlaneData | null;
+  jobsWithTimeRange: MlJobWithTimeRange[];
   invalidTimeRangeError?: boolean;
   stoppedPartitions?: string[];
   // TODO Remove
@@ -182,6 +183,7 @@ export const Explorer: FC<ExplorerUIProps> = ({
   swimLaneSeverity,
   explorerState,
   overallSwimlaneData,
+  jobsWithTimeRange,
 }) => {
   const isMobile = useIsWithinBreakpoints(['xs', 's']);
 
@@ -444,6 +446,7 @@ export const Explorer: FC<ExplorerUIProps> = ({
 
   const jobSelectorProps = {
     dateFormatTz: getDateFormatTz(uiSettings),
+    jobsWithTimeRange,
   } as JobSelectorProps;
 
   const noJobsSelected = !selectedJobs || selectedJobs.length === 0;

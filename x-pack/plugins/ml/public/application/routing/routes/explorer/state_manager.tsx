@@ -233,6 +233,7 @@ export const ExplorerUrlStateManager: FC<ExplorerUrlStateManagerProps> = ({
               timefilter,
               selectedCells,
               swimLaneSeverity,
+              jobsWithTimeRange,
             }}
           />
         )}

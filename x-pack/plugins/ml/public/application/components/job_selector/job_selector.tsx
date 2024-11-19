@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 import {
   EuiButtonEmpty,
@@ -28,6 +28,7 @@ import { BADGE_LIMIT, JobSelectorFlyoutContent } from './job_selector_flyout';
 import type { MlJobWithTimeRange } from '../../../../common/types/anomaly_detection_jobs';
 import { ML_APPLY_TIME_RANGE_CONFIG } from '../../../../common/types/storage';
 import { FeedBackButton } from '../feedback_button';
+import { getGroupsFromJobs } from './job_select_service_utils';
 
 interface GroupObj {
   groupId: string;
@@ -76,6 +77,7 @@ export function getInitialGroupsMap(selectedGroups: GroupObj[]): GroupsMap {
 
 export interface JobSelectorProps {
   dateFormatTz: string;
+  jobsWithTimeRange: MlJobWithTimeRange[];
   singleSelection: boolean;
   timeseriesOnly: boolean;
 }
@@ -85,7 +87,12 @@ export interface JobSelectionMaps {
   groupsMap: Dictionary<string[]>;
 }
 
-export function JobSelector({ dateFormatTz, singleSelection, timeseriesOnly }: JobSelectorProps) {
+export function JobSelector({
+  dateFormatTz,
+  singleSelection,
+  timeseriesOnly,
+  jobsWithTimeRange,
+}: JobSelectorProps) {
   const [globalState, setGlobalState] = useUrlState('_g');
   const [applyTimeRangeConfig, setApplyTimeRangeConfig] = useStorage(
     ML_APPLY_TIME_RANGE_CONFIG,
@@ -93,11 +100,21 @@ export function JobSelector({ dateFormatTz, singleSelection, timeseriesOnly }: J
   );
 
   const selectedJobIds = globalState?.ml?.jobIds ?? [];
-  const selectedGroups = globalState?.ml?.groups ?? [];
+  const selectedGroups = useMemo(() => globalState?.ml?.groups ?? [], [globalState?.ml?.groups]);
 
-  const [maps, setMaps] = useState<JobSelectionMaps>({
-    groupsMap: getInitialGroupsMap(selectedGroups),
-    jobsMap: {},
+  const [maps, setMaps] = useState<JobSelectionMaps>(() => {
+    const { groupsMap } = getGroupsFromJobs(jobsWithTimeRange);
+    const jobsMap = jobsWithTimeRange.reduce((acc, job) => {
+      acc[job.id] = job;
+      return acc;
+    }, {} as Dictionary<MlJobWithTimeRange>);
+    return {
+      groupsMap: {
+        ...groupsMap,
+        ...getInitialGroupsMap(selectedGroups),
+      },
+      jobsMap,
+    };
   });
   const [selectedIds, setSelectedIds] = useState(
     mergeSelection(selectedJobIds, selectedGroups, singleSelection)

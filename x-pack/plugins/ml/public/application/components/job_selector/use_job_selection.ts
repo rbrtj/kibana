@@ -95,10 +95,10 @@ export const useJobSelection = (jobs: MlJobWithTimeRange[]) => {
     // if there are no valid ids, ask the user to provide job selection with the flyout
     if (validIds.length === 0 && jobs.length > 0) {
       getJobSelection({ singleSelection: false })
-        .then(({ jobIds, time }) => {
+        .then(({ jobIds, time, groups }) => {
           const mlGlobalState = globalState?.ml || {};
           mlGlobalState.jobIds = jobIds;
-
+          mlGlobalState.groups = groups;
           setGlobalState({
             ...{ ml: mlGlobalState },
             ...(time !== undefined ? { time } : {}),
