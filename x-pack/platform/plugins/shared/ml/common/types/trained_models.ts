@@ -302,6 +302,41 @@ export interface ModelDownloadState {
 
 export type Stats = Omit<TrainedModelStat, 'model_id' | 'deployment_stats'>;
 
+export interface StartModelAllocationResponse {
+  assignment: {
+    adaptive_allocations: {
+      enabled: boolean;
+      min_number_of_allocations?: number;
+      max_number_of_allocations?: number;
+    };
+    assignment_state: 'started' | 'starting' | 'stopping' | 'failed';
+    max_assigned_allocations?: number;
+    reason?: string;
+    routing_table: Record<
+      string,
+      {
+        reason?: string;
+        routing_state: 'failed' | 'started' | 'starting' | 'stopped' | 'stopping';
+        current_allocations: number;
+        target_allocations: number;
+      }
+    >;
+    start_time: string | number;
+    task_parameters: {
+      model_bytes: number | string;
+      model_id: string;
+      deployment_id: string;
+      cache_size?: number | string;
+      number_of_allocations: number;
+      priority: 'normal' | 'low';
+      per_deployment_memory_bytes: number | string;
+      per_allocation_memory_bytes: number | string;
+      queue_capacity: number;
+      threads_per_allocation: number;
+    };
+  };
+}
+
 /**
  * Additional properties for all items in the Trained models table
  * */

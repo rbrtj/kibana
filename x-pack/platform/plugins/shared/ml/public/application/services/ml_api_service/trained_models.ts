@@ -27,6 +27,7 @@ import type {
   ModelDownloadState,
   TrainedModelUIItem,
   TrainedModelConfigResponse,
+  StartModelAllocationResponse,
 } from '../../../../common/types/trained_models';
 
 export interface InferenceQueryParams {
@@ -232,7 +233,7 @@ export function trainedModelsApiProvider(httpService: HttpService) {
       queryParams?: CommonDeploymentParams,
       bodyParams?: AdaptiveAllocationsParams
     ) {
-      return httpService.http<{ acknowledge: boolean }>({
+      return httpService.http<StartModelAllocationResponse>({
         path: `${ML_INTERNAL_BASE_PATH}/trained_models/${modelId}/deployment/_start`,
         method: 'POST',
         query: queryParams,
