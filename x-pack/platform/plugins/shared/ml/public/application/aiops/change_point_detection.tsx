@@ -23,6 +23,7 @@ import { TechnicalPreviewBadge } from '../components/technical_preview_badge';
 
 import { MlPageHeader } from '../components/page_header';
 import { useEnabledFeatures } from '../contexts/ml/serverless_context';
+import { MLJobsAwaitingNodeWarning } from '../components/jobs_awaiting_node_warning/new_job_awaiting_node_shared/new_job_awaiting_node_shared';
 
 export const ChangePointDetectionPage: FC = () => {
   const { services } = useMlKibana();
@@ -33,6 +34,7 @@ export const ChangePointDetectionPage: FC = () => {
   return (
     <>
       <MlPageHeader>
+        <MLJobsAwaitingNodeWarning jobIds={[]} />
         <EuiFlexGroup responsive={false} wrap={false} alignItems={'center'} gutterSize={'m'}>
           <EuiFlexItem grow={false}>
             <FormattedMessage

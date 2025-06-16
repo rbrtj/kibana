@@ -27,8 +27,9 @@ function isJobAwaitingNodeAssignment(job: estypes.MlJobStats) {
   return job.node === undefined && job.state === JOB_STATE.OPENING;
 }
 
-const MLJobsAwaitingNodeWarning: FC<Props> = ({ jobIds }) => {
+export const MLJobsAwaitingNodeWarning: FC<Props> = ({ jobIds }) => {
   const { showNodeInfo } = useEnabledFeatures();
+  console.log('showNodeInfo: ', showNodeInfo);
   const { http } = useKibana().services;
   const mlApi = useMemo(() => mlApiProvider(new HttpService(http!)), [http]);
 
@@ -60,9 +61,9 @@ const MLJobsAwaitingNodeWarning: FC<Props> = ({ jobIds }) => {
   }, [jobIds]);
 
   const checkCloudInfo = useCallback(async () => {
-    if (unassignedJobCount === 0) {
-      return;
-    }
+    // if (unassignedJobCount === 0) {
+    //   return;
+    // }
 
     try {
       const resp = await mlApi.mlInfo();
@@ -93,7 +94,7 @@ const MLJobsAwaitingNodeWarning: FC<Props> = ({ jobIds }) => {
     checkNodes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobIds]);
-
+  console.log('cloudInfo: ', cloudInfo);
   if (unassignedJobCount === 0) {
     return null;
   }

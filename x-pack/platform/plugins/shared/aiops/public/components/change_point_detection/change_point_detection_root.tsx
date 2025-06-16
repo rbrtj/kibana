@@ -63,6 +63,7 @@ export const ChangePointDetectionAppState: FC<ChangePointDetectionAppStateProps>
   appContextValue,
   showFrozenDataTierChoice = true,
 }) => {
+  console.log('showFrozenDataTierChoice: ', showFrozenDataTierChoice);
   const datePickerDeps: DatePickerDependencies = {
     ...pick(appContextValue, [
       'data',
