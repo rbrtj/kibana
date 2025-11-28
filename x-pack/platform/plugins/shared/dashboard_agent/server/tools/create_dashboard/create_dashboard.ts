@@ -14,6 +14,7 @@ import { getToolResultId } from '@kbn/onechat-server';
 import type { DashboardPluginStart } from '@kbn/dashboard-plugin/server';
 import type { DashboardAppLocator } from '@kbn/dashboard-plugin/common/locator/locator';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
+import type { LensApiSchemaType } from '@kbn/lens-embeddable-utils/config_builder';
 
 import { dashboardTools } from '../../../common';
 import { checkDashboardToolsAvailability, normalizePanels } from '../utils';
@@ -22,9 +23,11 @@ const createDashboardSchema = z.object({
   title: z.string().describe('The title of the dashboard to create.'),
   description: z.string().describe('A description of the dashboard.'),
   panels: z
-    .array(z.unknown())
+    .array(z.custom<LensApiSchemaType>())
     .optional()
-    .describe('An array of panel configurations (PanelJSON or lens_tool_artifact).'),
+    .describe(
+      'An array of panel configurations returned from create_visualization tool (LensApiSchemaType).'
+    ),
 });
 
 export const createDashboardTool = (
@@ -50,7 +53,7 @@ This tool will:
 3. Create a dashboard with the provided configuration`,
     schema: createDashboardSchema,
     tags: [],
-    handler: async ({ title, description, panels, ...rest }, { logger, request, esClient }) => {
+    handler: async ({ title, description, panels }, { logger, request }) => {
       try {
         const dashboardsClient = dashboard.client;
 

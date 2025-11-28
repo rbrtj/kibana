@@ -14,6 +14,7 @@ import { getToolResultId } from '@kbn/onechat-server';
 import type { DashboardPluginStart } from '@kbn/dashboard-plugin/server';
 import type { DashboardAppLocator } from '@kbn/dashboard-plugin/common/locator/locator';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
+import type { LensApiSchemaType } from '@kbn/lens-embeddable-utils/config_builder';
 
 import { dashboardTools } from '../../../common';
 import { checkDashboardToolsAvailability, normalizePanels } from '../utils';
@@ -23,9 +24,11 @@ const updateDashboardSchema = z.object({
   title: z.string().optional().describe('The updated title of the dashboard.'),
   description: z.string().optional().describe('The updated description of the dashboard.'),
   panels: z
-    .unknown()
+    .array(z.custom<LensApiSchemaType>())
     .optional()
-    .describe('An array of panel configurations (PanelJSON or lens_tool_artifact) to update.'),
+    .describe(
+      'An array of panel configurations returned from create_visualization tool (LensApiSchemaType) to update.'
+    ),
 });
 
 export const updateDashboardTool = (
@@ -68,8 +71,7 @@ This tool will:
         // First, read the existing dashboard to get current values
         const existingDashboard = await dashboardsClient.read(requestHandlerContext, id);
 
-        const normalizedPanels =
-          panels !== undefined ? normalizePanels(panels as unknown[]) : undefined;
+        const normalizedPanels = panels !== undefined ? normalizePanels(panels) : undefined;
 
         // Merge existing data with provided updates
         const updateData = {

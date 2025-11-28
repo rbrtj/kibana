@@ -31,11 +31,8 @@ export const checkDashboardToolsAvailability = async ({
  * Normalizes panel configurations to the correct DashboardPanel format.
  * This is a temporary function to handle lens API schema conversion.
  */
-export const normalizePanels = (panels: unknown[] | undefined): DashboardPanel[] => {
-  return (panels ?? []).map((panel, index) => {
-    return buildLensPanelFromApi(panel as LensApiSchemaType, index);
-  });
-};
+export const normalizePanels = (panels: LensApiSchemaType[] | undefined): DashboardPanel[] =>
+  (panels ?? []).map((panel, index) => buildLensPanelFromApi(panel, index));
 
 const buildLensPanelFromApi = (config: LensApiSchemaType, index: number): DashboardPanel => {
   const lensAttributes: LensAttributes = new LensConfigBuilder().fromAPIFormat(config);
