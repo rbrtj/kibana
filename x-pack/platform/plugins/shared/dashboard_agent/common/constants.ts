@@ -22,5 +22,13 @@ const dashboardTool = (toolName: string) => {
  * These tools are registered by the dashboard_agent plugin.
  */
 export const dashboardTools = {
+  /** @deprecated retained until the v2 split is fully cut over. */
   manageDashboard: dashboardTool('manage_dashboard'),
+  createDashboard: dashboardTool('create_dashboard'),
+  updateDashboardMetadata: dashboardTool('update_dashboard_metadata'),
+  addPanels: dashboardTool('add_panels'),
+  editPanels: dashboardTool('edit_panels'),
+  arrangePanels: dashboardTool('arrange_panels'),
+  removePanels: dashboardTool('remove_panels'),
+  manageSections: dashboardTool('manage_sections'),
 } as const;

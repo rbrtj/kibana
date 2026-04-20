@@ -22,3 +22,15 @@ export {
   retrieveLatestVersion,
   type VisualizationFailure,
 } from './utils';
+export {
+  type InlineSectionPanel,
+  type PanelInput,
+  inlineSectionPanelSchema,
+  panelInputSchema,
+  panelInputToOperation,
+} from './panel_input';
+export {
+  type RunDashboardOperationsContext,
+  type RunDashboardOperationsParams,
+  runDashboardOperations,
+} from './run_dashboard_operations';
