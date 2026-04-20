@@ -6,7 +6,7 @@
  */
 
 import type { AgentBuilderPluginSetup } from '@kbn/agent-builder-plugin/server';
-import { dashboardManagementSkill } from './dashboard_management_skill';
+import { dashboardManagementV2Skill } from './dashboard_management_v2_skill';
 import { registerSkills } from './register_skills';
 
 describe('registerSkills', () => {
@@ -19,11 +19,11 @@ describe('registerSkills', () => {
     await registerSkills(agentBuilder);
 
     expect(register).toHaveBeenCalledTimes(1);
-    expect(register).toHaveBeenCalledWith(dashboardManagementSkill);
+    expect(register).toHaveBeenCalledWith(dashboardManagementV2Skill);
   });
 
   it('includes SML discovery instructions in the skill content', () => {
-    expect(dashboardManagementSkill.content).toContain('platform.core.sml_search');
-    expect(dashboardManagementSkill.content).toContain('platform.core.sml_attach');
+    expect(dashboardManagementV2Skill.content).toContain('platform.core.sml_search');
+    expect(dashboardManagementV2Skill.content).toContain('platform.core.sml_attach');
   });
 });

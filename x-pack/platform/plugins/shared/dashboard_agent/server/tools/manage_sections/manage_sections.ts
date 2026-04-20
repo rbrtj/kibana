@@ -11,23 +11,12 @@ import type { BuiltinSkillBoundedTool } from '@kbn/agent-builder-server/skills';
 import { sectionGridSchema } from '@kbn/dashboard-agent-common';
 
 import { dashboardTools } from '../../../common';
-import {
-  type DashboardOperation,
-  inlineSectionPanelSchema,
-  runDashboardOperations,
-} from '../_shared';
+import { type DashboardOperation, runDashboardOperations } from '../_shared';
 
 const addSectionInputSchema = z.object({
   operation: z.literal('add'),
   title: z.string().describe('Section title.'),
   grid: sectionGridSchema,
-  panels: z
-    .array(inlineSectionPanelSchema)
-    .min(1)
-    .optional()
-    .describe(
-      'Optional inline Lens visualization panels to create inside this new section. Panel grids are section-relative.'
-    ),
 });
 
 const removeSectionInputSchema = z.object({
@@ -49,7 +38,7 @@ const manageSectionsSchema = z.object({
     .array(sectionOperationSchema)
     .min(1)
     .describe(
-      'Section operations to apply in order. Use add (with optional inline panels[]) to create a section atomically; use remove with panelAction to delete a section.'
+      'Section operations to apply in order. Use add to create empty sections; use remove with panelAction to delete sections.'
     ),
 });
 
@@ -61,7 +50,6 @@ const sectionOperationToEngineOperation = (op: SectionOperation): DashboardOpera
       operation: 'add_section',
       title: op.title,
       grid: op.grid,
-      panels: op.panels,
     };
   }
   return {
@@ -78,10 +66,10 @@ export const manageSectionsTool = (): BuiltinSkillBoundedTool<typeof manageSecti
     description: `Add or remove dashboard sections.
 
 Each operation is one of:
-- add: create a new section with title and grid. Optional inline panels[] (visualization-only, section-relative grids) create the section AND its initial panels in a single round-trip.
-- remove: delete an existing section by id. panelAction: "promote" moves its panels to the top level; "delete" deletes them.
+- add: create a new empty section with title and grid. To populate the section, follow up with add_panels and set sectionId on each panel.
+- remove: delete an existing section by id. panelAction: "promote" moves its panels to the top level; "delete" deletes them too.
 
-To add panels to an existing section, use add_panels with sectionId. Always reuse the section id returned by an earlier tool result; never invent one.`,
+This tool intentionally does NOT accept inline panels on add. Always reuse the section id returned by an earlier tool result; never invent one.`,
     schema: manageSectionsSchema,
     handler: async (input, context) =>
       runDashboardOperations({
