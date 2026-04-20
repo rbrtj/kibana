@@ -14,7 +14,7 @@ import type {
 import { isSection } from '@kbn/dashboard-agent-common';
 import { MARKDOWN_EMBEDDABLE_TYPE } from '@kbn/dashboard-markdown/server';
 import type { ResolveVisualizationConfig, VisualizationAttempt } from './inline_visualization';
-import { executeDashboardOperations, type DashboardOperation } from './operations';
+import { executeDashboardOperations, type DashboardOperation } from './operation_engine';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 
 const createMockLogger = (): Logger =>

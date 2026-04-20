@@ -19,13 +19,14 @@ import {
 
 import { dashboardTools } from '../../../common';
 import {
-  retrieveLatestVersion,
+  createVisualizationResolver,
+  dashboardOperationSchema,
+  executeDashboardOperations,
   getErrorMessage,
   resolvePanelsFromAttachments,
+  retrieveLatestVersion,
   type VisualizationFailure,
-} from './utils';
-import { createVisualizationResolver } from './inline_visualization';
-import { dashboardOperationSchema, executeDashboardOperations } from './operations';
+} from '../_shared';
 
 const manageDashboardSchema = z.object({
   dashboardAttachmentId: z
