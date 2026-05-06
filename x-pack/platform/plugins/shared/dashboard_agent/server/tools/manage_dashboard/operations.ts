@@ -12,12 +12,18 @@ import { panelGridSchema, sectionGridSchema } from '@kbn/dashboard-agent-common'
 import type { Logger } from '@kbn/core/server';
 import type { ResolveVisualizationConfig } from './inline_visualization';
 import type { VisualizationFailure } from './utils';
-import { executeOperationHandler } from './operations/handlers';
+import { addMarkdownHandler } from './operations/add_markdown';
+import { addPanelsFromAttachmentsHandler } from './operations/add_panels_from_attachments';
+import { addSectionHandler } from './operations/add_section';
+import { createVisualizationPanelsHandler } from './operations/create_visualization_panels';
+import { editVisualizationPanelsHandler } from './operations/edit_visualization_panels';
+import { removePanelsHandler } from './operations/remove_panels';
+import { removeSectionHandler } from './operations/remove_section';
+import { setMetadataHandler } from './operations/set_metadata';
+import { updatePanelLayoutsHandler } from './operations/update_panel_layouts';
+import { createDashboardOperationRegistry, defineDashboardOperation } from './operations/registry';
 import type { OperationExecutionContext } from './operations/types';
-import {
-  collectVisualizationCreationRequests,
-  resolveVisualizationCreationRequests,
-} from './operations/visualization_creation';
+import { resolveVisualizationCreationRequests } from './operations/visualization_creation';
 
 export const setMetadataOperationSchema = z.object({
   operation: z.literal('set_metadata'),
@@ -183,19 +189,82 @@ export const updatePanelLayoutsOperationSchema = z.object({
     .min(1),
 });
 
-export const dashboardOperationSchema = z.discriminatedUnion('operation', [
-  setMetadataOperationSchema,
-  addMarkdownOperationSchema,
-  addPanelsFromAttachmentsOperationSchema,
-  createVisualizationPanelsOperationSchema,
-  editVisualizationPanelsOperationSchema,
-  updatePanelLayoutsOperationSchema,
-  addSectionOperationSchema,
-  removeSectionOperationSchema,
-  removePanelsOperationSchema,
-]);
+export type VisualizationPanelInput = z.infer<typeof visualizationPanelInputSchema>;
+export type CreateVisualizationPanelInput = z.infer<typeof createVisualizationPanelSchema>;
+export type DashboardOperation =
+  | z.infer<typeof setMetadataOperationSchema>
+  | z.infer<typeof addMarkdownOperationSchema>
+  | z.infer<typeof addPanelsFromAttachmentsOperationSchema>
+  | z.infer<typeof createVisualizationPanelsOperationSchema>
+  | z.infer<typeof editVisualizationPanelsOperationSchema>
+  | z.infer<typeof updatePanelLayoutsOperationSchema>
+  | z.infer<typeof addSectionOperationSchema>
+  | z.infer<typeof removeSectionOperationSchema>
+  | z.infer<typeof removePanelsOperationSchema>;
 
-export type DashboardOperation = z.infer<typeof dashboardOperationSchema>;
+const dashboardOperationDefinitions = [
+  defineDashboardOperation({
+    operation: 'set_metadata',
+    schema: setMetadataOperationSchema,
+    handler: setMetadataHandler,
+  }),
+  defineDashboardOperation({
+    operation: 'add_markdown',
+    schema: addMarkdownOperationSchema,
+    handler: addMarkdownHandler,
+  }),
+  defineDashboardOperation({
+    operation: 'add_panels_from_attachments',
+    schema: addPanelsFromAttachmentsOperationSchema,
+    handler: addPanelsFromAttachmentsHandler,
+  }),
+  defineDashboardOperation({
+    operation: 'create_visualization_panels',
+    schema: createVisualizationPanelsOperationSchema,
+    handler: createVisualizationPanelsHandler,
+    collectVisualizationCreationRequests: (operation) =>
+      operation.panels.map((panelInput) => ({
+        operationType: operation.operation,
+        panelInput,
+        sectionId: panelInput.sectionId,
+      })),
+  }),
+  defineDashboardOperation({
+    operation: 'edit_visualization_panels',
+    schema: editVisualizationPanelsOperationSchema,
+    handler: editVisualizationPanelsHandler,
+  }),
+  defineDashboardOperation({
+    operation: 'update_panel_layouts',
+    schema: updatePanelLayoutsOperationSchema,
+    handler: updatePanelLayoutsHandler,
+  }),
+  defineDashboardOperation({
+    operation: 'add_section',
+    schema: addSectionOperationSchema,
+    handler: addSectionHandler,
+    collectVisualizationCreationRequests: (operation) =>
+      operation.panels?.map((panelInput) => ({
+        operationType: operation.operation,
+        panelInput,
+      })) ?? [],
+  }),
+  defineDashboardOperation({
+    operation: 'remove_section',
+    schema: removeSectionOperationSchema,
+    handler: removeSectionHandler,
+  }),
+  defineDashboardOperation({
+    operation: 'remove_panels',
+    schema: removePanelsOperationSchema,
+    handler: removePanelsHandler,
+  }),
+] as const;
+
+const dashboardOperationRegistry = createDashboardOperationRegistry(dashboardOperationDefinitions);
+export const dashboardOperationSchema = dashboardOperationRegistry.dashboardOperationSchema;
+const { executeOperationHandler, collectVisualizationCreationRequests } =
+  dashboardOperationRegistry;
 
 interface ExecuteDashboardOperationsParams {
   dashboardData?: DashboardAttachmentData;
@@ -206,9 +275,6 @@ interface ExecuteDashboardOperationsParams {
   ) => { panels: AttachmentPanel[]; failures: VisualizationFailure[] };
   resolveVisualizationConfig?: ResolveVisualizationConfig;
 }
-
-export type VisualizationPanelInput = z.infer<typeof visualizationPanelInputSchema>;
-export type CreateVisualizationPanelInput = z.infer<typeof createVisualizationPanelSchema>;
 
 const createEmptyDashboardData = (): DashboardAttachmentData => ({
   title: 'User Dashboard',
