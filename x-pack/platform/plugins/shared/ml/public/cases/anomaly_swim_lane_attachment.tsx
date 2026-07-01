@@ -120,6 +120,9 @@ export const initComponent = memoize((fieldFormats: FieldFormatsStart) => {
             maybeId={attachmentId}
             type={ANOMALY_SWIMLANE_EMBEDDABLE_TYPE}
             getParentApi={() => parentApi}
+            panelProps={{
+              hideHeader: true,
+            }}
           />
         </>
       );
