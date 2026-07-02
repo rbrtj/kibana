@@ -8,16 +8,20 @@
  */
 
 import { getESQLAdHocDataview, getIndexPatternFromESQLQuery } from '@kbn/esql-utils';
-import type { DataView } from '@kbn/data-views-plugin/common';
+import { apiPublishesDataViews } from '@kbn/presentation-publishing';
 import { coreServices, dataViewsService } from '../../services/kibana_services';
 
 interface Options {
-  preferredDataViews?: DataView[];
+  parentApi?: unknown;
 }
 
 export const getDataViewIdFromESQLQuery = async (query: string, options: Options = {}) => {
+  const preferredDataViews = apiPublishesDataViews(options.parentApi)
+    ? options.parentApi.dataViews$.value
+    : undefined;
+
   const indexPattern = getIndexPatternFromESQLQuery(query);
-  const existingDataView = options.preferredDataViews?.find(
+  const existingDataView = preferredDataViews?.find(
     (dataView) => dataView.getIndexPattern() === indexPattern
   );
   if (existingDataView?.id) {

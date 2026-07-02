@@ -30,7 +30,7 @@ import type { Filter } from '@kbn/es-query';
 import type { ESQLControlVariable } from '@kbn/esql-types';
 import { apiPublishesESQLVariables } from '@kbn/esql-types';
 import { i18n } from '@kbn/i18n';
-import { apiPublishesDataViews, type StateComparators } from '@kbn/presentation-publishing';
+import { type StateComparators } from '@kbn/presentation-publishing';
 import { initializeStateManager } from '@kbn/presentation-publishing/state_manager';
 import type { StateManager, WithAllKeys } from '@kbn/presentation-publishing/state_manager/types';
 
@@ -260,11 +260,7 @@ export const initializeDataControlManager = async <EditorState extends object = 
           })
         );
       }
-      const dataViewId = await getDataViewIdFromESQLQuery(query, {
-        preferredDataViews: apiPublishesDataViews(parentApi)
-          ? parentApi.dataViews$.value
-          : undefined,
-      });
+      const dataViewId = await getDataViewIdFromESQLQuery(query, { parentApi });
       if (!dataViewId) {
         throw new Error(
           i18n.translate('controls.dataControl.esqlDataViewDeriveFailed', {

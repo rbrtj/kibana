@@ -16,11 +16,7 @@ import { ESQLLangEditor } from '@kbn/esql/public';
 
 import type { ESQLColumn } from '@kbn/es-types';
 import type { ESQLControlVariable } from '@kbn/esql-types';
-import {
-  apiCanAddNewPanel,
-  apiCanPinPanels,
-  apiPublishesDataViews,
-} from '@kbn/presentation-publishing';
+import { apiCanAddNewPanel, apiCanPinPanels } from '@kbn/presentation-publishing';
 import { DEFAULT_ESQL_OPTIONS_LIST_STATE, ESQL_CONTROL } from '@kbn/controls-constants';
 import { dataService } from '../../../services/kibana_services';
 import { getESQLSingleColumnValues } from '../../../../common/options_list';
@@ -97,11 +93,7 @@ export const ConfigureValuesQuery = ({
         updateEditorState({
           esql_query: query,
           field_name: result.column.name,
-          data_view_id: await getDataViewIdFromESQLQuery(query, {
-            preferredDataViews: apiPublishesDataViews(parentApi)
-              ? parentApi.dataViews$.value
-              : undefined,
-          }),
+          data_view_id: await getDataViewIdFromESQLQuery(query, { parentApi }),
         });
       } else {
         updatePreviewOptionsAndColumns([], result.columns);

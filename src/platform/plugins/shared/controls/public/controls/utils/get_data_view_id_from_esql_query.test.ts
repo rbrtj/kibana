@@ -7,6 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import { BehaviorSubject } from 'rxjs';
 import { getESQLAdHocDataview } from '@kbn/esql-utils';
 import type { DataView } from '@kbn/data-views-plugin/common';
 import { coreServices, dataViewsService } from '../../services/kibana_services';
@@ -26,15 +27,17 @@ describe('getDataViewIdFromESQLQuery', () => {
     jest.clearAllMocks();
   });
 
-  it('returns a matching preferred data view id before checking saved data views', async () => {
+  it('returns a matching parent-published data view id before checking saved data views', async () => {
     dataViewsService.find = jest.fn();
-    const preferredDataViews = [
-      { id: 'published-data-view', getIndexPattern: () => 'logs-*' },
-    ] as DataView[];
+    const parentApi = {
+      dataViews$: new BehaviorSubject<DataView[] | undefined>([
+        { id: 'published-data-view', getIndexPattern: () => 'logs-*' },
+      ] as DataView[]),
+    };
 
     await expect(
       getDataViewIdFromESQLQuery('FROM logs-* | STATS BY service.name', {
-        preferredDataViews,
+        parentApi,
       })
     ).resolves.toBe('published-data-view');
 
