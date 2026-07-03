@@ -29,10 +29,12 @@ const dataControlFields = {
   field_name: z
     .string()
     .min(1)
+    .max(256)
     .describe('Exact field name as it appears in the panel ES|QL queries (e.g. "service.name").'),
   index: z
     .string()
     .min(1)
+    .max(256)
     .describe('Index, alias, or datastream to query for values (e.g. "logs-*").'),
 };
 
@@ -46,7 +48,7 @@ const controlLayoutFields = {
 
 const dataControlInputFields = {
   ...dataControlFields,
-  title: z.string().optional().describe('Human-readable label shown above the control.'),
+  title: z.string().max(256).optional().describe('Human-readable label shown above the control.'),
   ...controlLayoutFields,
 };
 
