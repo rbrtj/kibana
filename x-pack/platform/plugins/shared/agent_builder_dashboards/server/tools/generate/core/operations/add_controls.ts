@@ -11,9 +11,14 @@ import {
   DEFAULT_DSL_OPTIONS_LIST_STATE,
   DEFAULT_RANGE_SLIDER_STATE,
   DEFAULT_TIME_SLIDER_STATE,
+  OPTIONS_LIST_CONTROL,
+  RANGE_SLIDER_CONTROL,
+  TIME_SLIDER_CONTROL,
 } from '@kbn/controls-constants';
 import type { DashboardPinnedPanel } from '@kbn/dashboard-plugin/server';
 import { z } from '@kbn/zod/v4';
+import { DASHBOARD_OPERATION_FAILURE_TYPES } from '../failure_types';
+import type { PanelFailure } from '../utils';
 import { defineOperation } from './types';
 
 const controlWidthSchema = z
@@ -31,29 +36,33 @@ const dataControlFields = {
     .describe('Index, alias, or datastream to query for values (e.g. "logs-*").'),
 };
 
-const optionsListControlInputSchema = z.object({
-  type: z.literal('options_list_control'),
-  ...dataControlFields,
-  title: z.string().optional().describe('Human-readable label shown above the control.'),
+const controlLayoutFields = {
   width: controlWidthSchema.optional(),
   grow: z
     .boolean()
     .optional()
     .describe('Expand to fill available horizontal space. Defaults to true.'),
+};
+
+const dataControlInputFields = {
+  ...dataControlFields,
+  title: z.string().optional().describe('Human-readable label shown above the control.'),
+  ...controlLayoutFields,
+};
+
+const optionsListControlInputSchema = z.object({
+  type: z.literal(OPTIONS_LIST_CONTROL),
+  ...dataControlInputFields,
 });
 
 const rangeSliderControlInputSchema = z.object({
-  type: z.literal('range_slider_control'),
-  ...dataControlFields,
-  title: z.string().optional().describe('Human-readable label shown above the control.'),
-  width: controlWidthSchema.optional(),
-  grow: z.boolean().optional(),
+  type: z.literal(RANGE_SLIDER_CONTROL),
+  ...dataControlInputFields,
 });
 
 const timeSliderControlInputSchema = z.object({
-  type: z.literal('time_slider_control'),
-  width: controlWidthSchema.optional(),
-  grow: z.boolean().optional(),
+  type: z.literal(TIME_SLIDER_CONTROL),
+  ...controlLayoutFields,
 });
 
 const controlInputSchema = z.discriminatedUnion('type', [
@@ -64,14 +73,45 @@ const controlInputSchema = z.discriminatedUnion('type', [
 
 type ControlInput = z.infer<typeof controlInputSchema>;
 
+const filterDuplicateTimeSliders = ({
+  existingControls,
+  controlsToAdd,
+  failures,
+}: {
+  existingControls: Array<{ type?: string }>;
+  controlsToAdd: ControlInput[];
+  failures: PanelFailure[];
+}): ControlInput[] => {
+  const hasTimeSlider = existingControls.some((control) => control.type === TIME_SLIDER_CONTROL);
+  let canAddTimeSlider = !hasTimeSlider;
+
+  return controlsToAdd.filter((control, controlInputIndex) => {
+    if (control.type !== TIME_SLIDER_CONTROL) {
+      return true;
+    }
+
+    if (canAddTimeSlider) {
+      canAddTimeSlider = false;
+      return true;
+    }
+
+    failures.push({
+      type: DASHBOARD_OPERATION_FAILURE_TYPES.addControls,
+      identifier: `controls[${controlInputIndex}]`,
+      error: 'A dashboard can contain at most one time_slider_control.',
+    });
+    return false;
+  });
+};
+
 const buildStoredControl = (control: ControlInput): DashboardPinnedPanel => {
   const { type, width = 'medium', grow = true } = control;
   const id = uuidv4();
 
-  if (type === 'time_slider_control') {
+  if (type === TIME_SLIDER_CONTROL) {
     const config = {
       ...DEFAULT_TIME_SLIDER_STATE,
-    } satisfies Extract<DashboardPinnedPanel, { type: 'time_slider_control' }>['config'];
+    } satisfies Extract<DashboardPinnedPanel, { type: typeof TIME_SLIDER_CONTROL }>['config'];
 
     return {
       type,
@@ -82,14 +122,14 @@ const buildStoredControl = (control: ControlInput): DashboardPinnedPanel => {
     };
   }
 
-  if (type === 'options_list_control') {
+  if (type === OPTIONS_LIST_CONTROL) {
     const { field_name, index, title } = control;
     const config = {
       ...DEFAULT_DSL_OPTIONS_LIST_STATE,
       ...(title !== undefined ? { title } : {}),
       values_source: ControlValuesSource.ESQL,
       esql_query: `FROM ${index} | STATS BY ${field_name}`,
-    } satisfies Extract<DashboardPinnedPanel, { type: 'options_list_control' }>['config'];
+    } satisfies Extract<DashboardPinnedPanel, { type: typeof OPTIONS_LIST_CONTROL }>['config'];
 
     return {
       type,
@@ -106,7 +146,7 @@ const buildStoredControl = (control: ControlInput): DashboardPinnedPanel => {
     ...(title !== undefined ? { title } : {}),
     values_source: ControlValuesSource.ESQL,
     esql_query: `FROM ${index} | STATS BY ${field_name}`,
-  } satisfies Extract<DashboardPinnedPanel, { type: 'range_slider_control' }>['config'];
+  } satisfies Extract<DashboardPinnedPanel, { type: typeof RANGE_SLIDER_CONTROL }>['config'];
 
   return {
     type,
@@ -127,11 +167,18 @@ export const addControlsOperation = defineOperation({
         'Controls to append. Use options_list_control for categorical/keyword fields, range_slider_control for numeric fields, time_slider_control for time sub-range filtering (at most one per dashboard).'
       ),
   }),
-  handler: ({ dashboardData, operation }) => {
-    const newControls = operation.controls.map(buildStoredControl);
+  handler: ({ dashboardData, operation, context }) => {
+    const existingControls = dashboardData.pinned_panels ?? [];
+    const controlsToAdd = filterDuplicateTimeSliders({
+      existingControls,
+      controlsToAdd: operation.controls,
+      failures: context.failures,
+    });
+
+    const newControls = controlsToAdd.map(buildStoredControl);
     return {
       ...dashboardData,
-      pinned_panels: [...(dashboardData.pinned_panels ?? []), ...newControls],
+      pinned_panels: [...existingControls, ...newControls],
     };
   },
 });

@@ -1902,6 +1902,61 @@ describe('add_controls / remove_controls operations', () => {
     expect(config.end_percentage_of_time_range).toBe(1);
   });
 
+  it('add_controls skips extra time_slider_control controls in one operation', async () => {
+    const { dashboardData, failures } = await executeDashboardOperations({
+      dashboardData: emptyDashboard,
+      operations: [
+        {
+          operation: 'add_controls',
+          controls: [
+            { type: 'time_slider_control' },
+            { type: 'time_slider_control' },
+            { type: 'options_list_control', field_name: 'service.name', index: 'logs-*' },
+          ],
+        },
+      ],
+      logger,
+    });
+
+    expect(dashboardData.pinned_panels).toHaveLength(2);
+    expect((dashboardData.pinned_panels as Array<Record<string, unknown>>)[0].type).toBe(
+      'time_slider_control'
+    );
+    expect((dashboardData.pinned_panels as Array<Record<string, unknown>>)[1].type).toBe(
+      'options_list_control'
+    );
+    expect(failures).toEqual([
+      {
+        type: 'add_controls',
+        identifier: 'controls[1]',
+        error: 'A dashboard can contain at most one time_slider_control.',
+      },
+    ]);
+  });
+
+  it('add_controls skips adding a second time_slider_control to an existing dashboard', async () => {
+    const { dashboardData: withTimeSlider } = await executeDashboardOperations({
+      dashboardData: emptyDashboard,
+      operations: [{ operation: 'add_controls', controls: [{ type: 'time_slider_control' }] }],
+      logger,
+    });
+
+    const { dashboardData, failures } = await executeDashboardOperations({
+      dashboardData: withTimeSlider,
+      operations: [{ operation: 'add_controls', controls: [{ type: 'time_slider_control' }] }],
+      logger,
+    });
+
+    expect(dashboardData.pinned_panels).toHaveLength(1);
+    expect(failures).toEqual([
+      {
+        type: 'add_controls',
+        identifier: 'controls[0]',
+        error: 'A dashboard can contain at most one time_slider_control.',
+      },
+    ]);
+  });
+
   it('add_controls appends to existing controls', async () => {
     const { dashboardData: after1 } = await executeDashboardOperations({
       dashboardData: emptyDashboard,
