@@ -1860,8 +1860,36 @@ describe('add_controls / remove_controls operations', () => {
     expect(control.grow).toBe(true);
     const config = control.config as Record<string, unknown>;
     expect(config.values_source).toBe('esql');
-    expect(config.esql_query).toBe('FROM logs-* | STATS BY service.name');
+    expect(config.esql_query).toBe('FROM logs-* | STATS BY `service.name`');
     expect(config.title).toBe('Service');
+  });
+
+  it('add_controls escapes ES|QL field identifiers in generated queries', async () => {
+    const { dashboardData } = await executeDashboardOperations({
+      dashboardData: emptyDashboard,
+      operations: [
+        {
+          operation: 'add_controls',
+          controls: [
+            { type: 'options_list_control', field_name: 'labels.pod-name', index: 'logs-*' },
+            {
+              type: 'range_slider_control',
+              field_name: 'kubernetes.labels.app.kubernetes.io/name',
+              index: 'logs-*',
+            },
+          ],
+        },
+      ],
+      logger,
+    });
+
+    const controls = dashboardData.pinned_panels as Array<Record<string, unknown>>;
+    expect((controls[0].config as Record<string, unknown>).esql_query).toBe(
+      'FROM logs-* | STATS BY `labels.pod-name`'
+    );
+    expect((controls[1].config as Record<string, unknown>).esql_query).toBe(
+      'FROM logs-* | STATS BY `kubernetes.labels.app.kubernetes.io/name`'
+    );
   });
 
   it('add_controls appends range_slider_control', async () => {

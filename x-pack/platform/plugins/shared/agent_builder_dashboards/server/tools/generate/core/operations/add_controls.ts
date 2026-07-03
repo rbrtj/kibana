@@ -16,6 +16,7 @@ import {
   TIME_SLIDER_CONTROL,
 } from '@kbn/controls-constants';
 import type { DashboardPinnedPanel } from '@kbn/dashboard-plugin/server';
+import { formatEsqlIdentifier } from '@kbn/esql-utils';
 import { z } from '@kbn/zod/v4';
 import { DASHBOARD_OPERATION_FAILURE_TYPES } from '../failure_types';
 import type { PanelFailure } from '../utils';
@@ -130,7 +131,7 @@ const buildStoredControl = (control: ControlInput): DashboardPinnedPanel => {
       ...DEFAULT_DSL_OPTIONS_LIST_STATE,
       ...(title !== undefined ? { title } : {}),
       values_source: ControlValuesSource.ESQL,
-      esql_query: `FROM ${index} | STATS BY ${field_name}`,
+      esql_query: `FROM ${index} | STATS BY ${formatEsqlIdentifier(field_name)}`,
     } satisfies Extract<DashboardPinnedPanel, { type: typeof OPTIONS_LIST_CONTROL }>['config'];
 
     return {
@@ -147,7 +148,7 @@ const buildStoredControl = (control: ControlInput): DashboardPinnedPanel => {
     ...DEFAULT_RANGE_SLIDER_STATE,
     ...(title !== undefined ? { title } : {}),
     values_source: ControlValuesSource.ESQL,
-    esql_query: `FROM ${index} | STATS BY ${field_name}`,
+    esql_query: `FROM ${index} | STATS BY ${formatEsqlIdentifier(field_name)}`,
   } satisfies Extract<DashboardPinnedPanel, { type: typeof RANGE_SLIDER_CONTROL }>['config'];
 
   return {
