@@ -19,6 +19,15 @@ const DAY_MS = 24 * HOUR_MS;
 export const DEFAULT_TIME_RANGE_CAP_DAYS = 30;
 const CAP_MS = DEFAULT_TIME_RANGE_CAP_DAYS * DAY_MS;
 
+/** Live data (a doc within the last 24h) keeps the standard 24h default window. */
+const LIVE_CAP_MS = DAY_MS;
+
+/**
+ * Historical windows (anchored to data that ended more than the cap ago) stay
+ * narrow — loading a month of an old dataset by default is too slow.
+ */
+const HISTORICAL_CAP_MS = 2 * DAY_MS;
+
 /** Never produce a window narrower than this (avoids a degenerate single-point range). */
 const MIN_WINDOW_MS = HOUR_MS;
 
@@ -48,6 +57,9 @@ interface SelectedWindow {
  * - Anchor on the most recent dataset (latest `max`).
  * - `to` is `now` when the newest data is within the cap of now, else the newest
  *   data itself (the historical case).
+ * - The width cap depends on the tier: 24h for live data (a doc within the last
+ *   24h), {@link CAP_MS} for staler-but-current data (the window must reach back
+ *   to the data), and {@link HISTORICAL_CAP_MS} for historical windows.
  * - Drop datasets whose data sits entirely before the anchor window; widen `from`
  *   to cover the others, but never earlier than `to - cap` and never later than
  *   the oldest relevant data (shrink-to-fit for short datasets).
@@ -65,7 +77,9 @@ const computeWindow = (datasets: DatasetTimeRange[], nowMs: number): SelectedWin
   const isCurrent = nowMs - anchorMax <= CAP_MS;
   const toMs = isCurrent ? nowMs : anchorMax;
 
-  const windowStart = toMs - CAP_MS;
+  const isLive = nowMs - anchorMax <= LIVE_CAP_MS;
+  const capMs = isCurrent ? (isLive ? LIVE_CAP_MS : CAP_MS) : HISTORICAL_CAP_MS;
+  const windowStart = toMs - capMs;
   // Datasets whose newest data reaches into [windowStart, toMs] are relevant; the
   // rest are older/non-overlapping and intentionally dropped (their panel may be empty).
   const relevant = withData.filter((d) => d.maxMs >= windowStart);
@@ -84,7 +98,7 @@ const computeWindow = (datasets: DatasetTimeRange[], nowMs: number): SelectedWin
  * rendered range does not clip the selected data.
  */
 const renderRelativeFrom = (gapMs: number): string => {
-  if (gapMs < DAY_MS) {
+  if (gapMs <= DAY_MS) {
     const hours = Math.max(1, Math.ceil(gapMs / HOUR_MS));
     return `now-${hours}h`;
   }

@@ -28,10 +28,46 @@ describe('selectTimeRange', () => {
     expect(selectTimeRange([dataset(NaN, NaN)], NOW)).toBeUndefined();
   });
 
-  describe('current case (newest data within the cap -> anchor to now)', () => {
-    it('shrinks to the oldest data for live data (max ~ now)', () => {
+  describe('live case (newest data within the last 24h -> 24h cap)', () => {
+    it('caps the window at 24h when live data spans further back', () => {
       // data spans the last 10 days, still arriving
       expect(selectTimeRange([dataset(NOW - 10 * DAY, NOW - 5 * MIN)], NOW)).toEqual({
+        from: 'now-24h',
+        to: 'now',
+        mode: 'relative',
+      });
+    });
+
+    it('shrinks to the oldest data for a young dataset', () => {
+      expect(selectTimeRange([dataset(NOW - 6 * HOUR, NOW)], NOW)).toEqual({
+        from: 'now-6h',
+        to: 'now',
+        mode: 'relative',
+      });
+    });
+
+    it('floors a near-instant dataset to a 1h window', () => {
+      // a single point 5 minutes ago
+      expect(selectTimeRange([dataset(NOW - 5 * MIN, NOW - 5 * MIN)], NOW)).toEqual({
+        from: 'now-1h',
+        to: 'now',
+        mode: 'relative',
+      });
+    });
+
+    it('treats data exactly at the live boundary as live', () => {
+      expect(selectTimeRange([dataset(NOW - 10 * DAY, NOW - DAY)], NOW)).toEqual({
+        from: 'now-24h',
+        to: 'now',
+        mode: 'relative',
+      });
+    });
+  });
+
+  describe('recent case (newest data older than 24h but within the cap -> anchor to now)', () => {
+    it('reaches back to the data instead of keeping the 24h cap', () => {
+      // max just past the live boundary, min 10d ago
+      expect(selectTimeRange([dataset(NOW - 10 * DAY, NOW - DAY - MIN)], NOW)).toEqual({
         from: 'now-10d/d',
         to: 'now',
         mode: 'relative',
@@ -56,27 +92,10 @@ describe('selectTimeRange', () => {
       });
     });
 
-    it('shrinks a short dataset instead of showing 30d of whitespace', () => {
-      // last 3 days only
-      expect(selectTimeRange([dataset(NOW - 3 * DAY, NOW - MIN)], NOW)).toEqual({
+    it('shrinks a short stale dataset instead of showing 30d of whitespace', () => {
+      // a 1-day burst that ended 2 days ago
+      expect(selectTimeRange([dataset(NOW - 3 * DAY, NOW - 2 * DAY)], NOW)).toEqual({
         from: 'now-3d/d',
-        to: 'now',
-        mode: 'relative',
-      });
-    });
-
-    it('uses hour granularity for sub-day windows', () => {
-      expect(selectTimeRange([dataset(NOW - 6 * HOUR, NOW)], NOW)).toEqual({
-        from: 'now-6h',
-        to: 'now',
-        mode: 'relative',
-      });
-    });
-
-    it('floors a near-instant dataset to a 1h window', () => {
-      // a single point 5 minutes ago
-      expect(selectTimeRange([dataset(NOW - 5 * MIN, NOW - 5 * MIN)], NOW)).toEqual({
-        from: 'now-1h',
         to: 'now',
         mode: 'relative',
       });
@@ -93,8 +112,8 @@ describe('selectTimeRange', () => {
 
   describe('historical case (newest data older than the cap -> anchor to data)', () => {
     it('anchors an absolute window to the newest data when data ended months ago', () => {
-      const min = NOW - 90 * DAY;
       const max = NOW - 60 * DAY;
+      const min = max - DAY;
       expect(selectTimeRange([dataset(min, max)], NOW)).toEqual({
         from: new Date(min).toISOString(),
         // `to` is padded +1ms past the newest timestamp (exclusive `?_tend`).
@@ -103,11 +122,11 @@ describe('selectTimeRange', () => {
       });
     });
 
-    it('caps the historical window at 30d for a wide fully-historical dataset', () => {
+    it('caps the historical window at 2d for a wide fully-historical dataset', () => {
       const min = new Date('2021-01-01T00:00:00.000Z').getTime();
       const max = new Date('2021-12-31T23:59:59.000Z').getTime();
       expect(selectTimeRange([dataset(min, max)], NOW)).toEqual({
-        from: new Date(max - 30 * DAY).toISOString(),
+        from: new Date(max - 2 * DAY).toISOString(),
         to: new Date(max + 1).toISOString(),
         mode: 'absolute',
       });
@@ -145,7 +164,7 @@ describe('selectTimeRange', () => {
 
   describe('multiple datasets', () => {
     it('anchors on the most recent dataset and drops a disjoint older one', () => {
-      const recent = dataset(NOW - 5 * DAY, NOW - MIN, 'logs-recent');
+      const recent = dataset(NOW - 5 * HOUR, NOW - MIN, 'logs-recent');
       const old = dataset(
         new Date('2021-01-01T00:00:00.000Z').getTime(),
         new Date('2021-02-01T00:00:00.000Z').getTime(),
@@ -153,15 +172,26 @@ describe('selectTimeRange', () => {
       );
       // old dataset sits entirely before the anchor window and is dropped
       expect(selectTimeRange([recent, old], NOW)).toEqual({
-        from: 'now-5d/d',
+        from: 'now-5h',
         to: 'now',
         mode: 'relative',
       });
     });
 
-    it('widens from to cover an overlapping second dataset', () => {
-      const a = dataset(NOW - 20 * DAY, NOW - MIN, 'a');
-      const b = dataset(NOW - 10 * DAY, NOW - 2 * DAY, 'b');
+    it('keeps the 24h window when a live dataset is mixed with a stale one', () => {
+      const live = dataset(NOW - 2 * DAY, NOW - MIN, 'live');
+      const stale = dataset(NOW - 10 * DAY, NOW - 3 * DAY, 'stale');
+      // the live dataset wins; the stale one falls outside the 24h window
+      expect(selectTimeRange([live, stale], NOW)).toEqual({
+        from: 'now-24h',
+        to: 'now',
+        mode: 'relative',
+      });
+    });
+
+    it('widens from to cover an overlapping second dataset when none is live', () => {
+      const a = dataset(NOW - 20 * DAY, NOW - 2 * DAY, 'a');
+      const b = dataset(NOW - 10 * DAY, NOW - 5 * DAY, 'b');
       // both overlap the anchor window; from widens to the oldest (20d)
       expect(selectTimeRange([a, b], NOW)).toEqual({
         from: 'now-20d/d',
@@ -171,8 +201,8 @@ describe('selectTimeRange', () => {
     });
 
     it('ignores dataset order', () => {
-      const a = dataset(NOW - 20 * DAY, NOW - MIN, 'a');
-      const b = dataset(NOW - 10 * DAY, NOW - 2 * DAY, 'b');
+      const a = dataset(NOW - 20 * DAY, NOW - 2 * DAY, 'a');
+      const b = dataset(NOW - 10 * DAY, NOW - 5 * DAY, 'b');
       expect(selectTimeRange([b, a], NOW)).toEqual(selectTimeRange([a, b], NOW));
     });
   });

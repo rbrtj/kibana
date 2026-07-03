@@ -102,7 +102,7 @@ describe('applyDefaultDashboardTimeRange', () => {
     expect(search).not.toHaveBeenCalled();
   });
 
-  it('sets a relative range from the probed min/max for recent data', async () => {
+  it('sets a 24h relative range from the probed min/max for live data', async () => {
     const search = jest.fn().mockResolvedValue(minMaxResponse(NOW - 5 * DAY_MS, NOW));
     const fieldCaps = jest.fn();
 
@@ -113,7 +113,7 @@ describe('applyDefaultDashboardTimeRange', () => {
       nowMs: NOW,
     });
 
-    expect(result.time_range).toEqual({ from: 'now-5d/d', to: 'now', mode: 'relative' });
+    expect(result.time_range).toEqual({ from: 'now-24h', to: 'now', mode: 'relative' });
     // time field came from the query, so no field_caps lookup
     expect(fieldCaps).not.toHaveBeenCalled();
     expect(search).toHaveBeenCalledTimes(1);
@@ -131,7 +131,7 @@ describe('applyDefaultDashboardTimeRange', () => {
       nowMs: NOW,
     });
 
-    expect(result.time_range).toEqual({ from: 'now-3d/d', to: 'now', mode: 'relative' });
+    expect(result.time_range).toEqual({ from: 'now-24h', to: 'now', mode: 'relative' });
     expect(fieldCaps).toHaveBeenCalledTimes(1);
     expect(search).toHaveBeenCalledTimes(1);
   });
@@ -183,7 +183,7 @@ describe('applyDefaultDashboardTimeRange', () => {
       nowMs: NOW,
     });
 
-    expect(result.time_range).toEqual({ from: 'now-5d/d', to: 'now', mode: 'relative' });
+    expect(result.time_range).toEqual({ from: 'now-24h', to: 'now', mode: 'relative' });
     expect(search).toHaveBeenCalledTimes(2);
   });
 
