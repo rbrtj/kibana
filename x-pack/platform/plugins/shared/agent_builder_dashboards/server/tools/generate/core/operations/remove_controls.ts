@@ -12,7 +12,7 @@ export const removeControlsOperation = defineOperation({
   schema: z.object({
     operation: z.literal('remove_controls'),
     control_ids: z
-      .array(z.string())
+      .array(z.string().max(256))
       .min(1)
       .max(256)
       .describe('IDs of controls to remove (from the controls[] list in the tool result).'),
