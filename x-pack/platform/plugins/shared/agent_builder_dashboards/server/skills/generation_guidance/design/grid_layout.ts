@@ -15,7 +15,8 @@ Every \`add_panels.panels[]\` item and every \`add_section.panels[]\` item requi
 
 Use these sizes — **do not make metric or gauge panels full-width**:
 
-- **Metric** → \`w: 6, 8, or 12, h: 5–6\`. These are single-number panels — keep them **small**. Fit 3–6 per row.
+- **Metric** → \`w: 6, 8, or 12, h: 5–6\`. These are single-number panels — keep them **small**. Fit 4–8 per row.
+  - 8 metrics in a row: each \`w: 6, h: 5\`
   - 6 metrics in a row: each \`w: 8, h: 5\`
   - 4 metrics in a row: each \`w: 12, h: 5\`
 - **Gauge** → \`w: 12, h: 8\`. Fit up to 4 per row.
