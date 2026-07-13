@@ -40,8 +40,8 @@ export interface ToolResultMixin<TType extends string = string, TData extends Ob
   data: TType extends ToolResultType.other
     ? TData
     : TType extends ToolResultType
-    ? ToolResultDataOf<TType>
-    : TData;
+      ? ToolResultDataOf<TType>
+      : TData;
 }
 
 type UnknownToolType<T extends string> = T extends ToolResultType ? never : T;
@@ -113,11 +113,11 @@ export type QueryResult = ToolResultMixin<ToolResultType.query>;
 export enum SupportedChartType {
   Metric = 'metric',
   Gauge = 'gauge',
-  Tagcloud = 'tagcloud',
+  Tagcloud = 'tag_cloud',
   XY = 'xy',
   RegionMap = 'region_map',
   Heatmap = 'heatmap',
-  Datatable = 'datatable',
+  Datatable = 'data_table',
   Pie = 'pie',
   Treemap = 'treemap',
   Waffle = 'waffle',
