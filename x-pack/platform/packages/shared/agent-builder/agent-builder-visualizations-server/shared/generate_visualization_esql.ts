@@ -7,6 +7,7 @@
 
 import type { EsqlEsqlColumnInfo } from '@elastic/elasticsearch/lib/api/types';
 import type { TimeRange } from '@kbn/agent-builder-common';
+import { EffortLevels } from '@kbn/agent-builder-common';
 import type { ModelProvider, ToolEventEmitter } from '@kbn/agent-builder-server';
 import type { Logger } from '@kbn/logging';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
@@ -75,6 +76,15 @@ export const buildEsqlEditContext = (
 };
 
 /**
+ * Context given to the default-model fallback run so it does not repeat the
+ * low-effort model's mistake.
+ */
+const buildFallbackContext = (failedQuery: string | undefined, error: string): string =>
+  failedQuery
+    ? `A previous attempt with a smaller model produced this failing query: "${failedQuery}" (error: ${error}). Avoid repeating this mistake.`
+    : `A previous attempt with a smaller model failed to produce a query (error: ${error}).`;
+
+/**
  * Resolve a visualization-ready ES|QL query, shared by the Lens and Vega
  * engines so both generate queries the same way.
  *
@@ -83,6 +93,12 @@ export const buildEsqlEditContext = (
  * failed when none was produced or the loop still reported an execution error,
  * ensuring an unrunnable query never reaches config/spec authoring. On edits,
  * `existingQueries` seed the request so a query-changing edit is not blocked.
+ *
+ * Generation runs on the low-effort model first. When it soft-fails (no usable
+ * query after the internal retries), one fallback run uses the default model,
+ * seeded with the failing query. Thrown errors (infra) never trigger the
+ * fallback, and it is skipped when both models resolve to the same connector
+ * (no dedicated fast endpoint configured).
  */
 export const generateVisualizationEsql = async ({
   nlQuery,
@@ -95,11 +111,9 @@ export const generateVisualizationEsql = async ({
   timeRange,
   extraInstructions,
 }: GenerateVisualizationEsqlParams): Promise<GeneratedVisualizationEsql> => {
-  const model = await modelProvider.getDefaultModel();
-  const response = await generateEsql({
+  const requestParams = {
     nlQuery: buildEsqlEditContext(nlQuery, existingQueries),
     index,
-    model,
     events,
     logger,
     esClient: esClient.asCurrentUser,
@@ -107,11 +121,35 @@ export const generateVisualizationEsql = async ({
       ? `${esqlAdditionalInstructions}\n${extraInstructions}`
       : esqlAdditionalInstructions,
     ...(timeRange ? { timeRange } : {}),
-  });
+  };
 
-  if (!response.query || response.error) {
-    return { error: response.error ?? 'No queries generated' };
+  const lowEffortModel = await modelProvider.selectModel({ effortLevel: EffortLevels.low });
+  const response = await generateEsql({ ...requestParams, model: lowEffortModel });
+
+  if (response.query && !response.error) {
+    return { query: response.query, columns: response.results?.columns };
   }
 
-  return { query: response.query, columns: response.results?.columns };
+  const error = response.error ?? 'No queries generated';
+
+  const defaultModel = await modelProvider.getDefaultModel();
+  if (defaultModel.connector.connectorId === lowEffortModel.connector.connectorId) {
+    return { error };
+  }
+
+  logger.warn(
+    `ES|QL generation with the low-effort model failed (${error}), retrying with the default model`
+  );
+
+  const fallbackResponse = await generateEsql({
+    ...requestParams,
+    model: defaultModel,
+    additionalContext: buildFallbackContext(response.query, error),
+  });
+
+  if (!fallbackResponse.query || fallbackResponse.error) {
+    return { error: fallbackResponse.error ?? 'No queries generated' };
+  }
+
+  return { query: fallbackResponse.query, columns: fallbackResponse.results?.columns };
 };
