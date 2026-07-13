@@ -7,7 +7,6 @@
 
 import type { EsqlEsqlColumnInfo } from '@elastic/elasticsearch/lib/api/types';
 import type { TimeRange } from '@kbn/agent-builder-common';
-import { EffortLevels } from '@kbn/agent-builder-common';
 import type { ModelProvider, ToolEventEmitter } from '@kbn/agent-builder-server';
 import type { Logger } from '@kbn/logging';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
@@ -94,11 +93,10 @@ const buildFallbackContext = (failedQuery: string | undefined, error: string): s
  * ensuring an unrunnable query never reaches config/spec authoring. On edits,
  * `existingQueries` seed the request so a query-changing edit is not blocked.
  *
- * Generation runs on the low-effort model first. When it soft-fails (no usable
- * query after the internal retries), one fallback run uses the default model,
- * seeded with the failing query. Thrown errors (infra) never trigger the
- * fallback, and it is skipped when both models resolve to the same connector
- * (no dedicated fast endpoint configured).
+ * Generation runs on the low-effort model first (two attempts). When it
+ * soft-fails (no usable query), one fallback attempt uses the default model,
+ * seeded with the failing query — three attempts in total. Thrown errors
+ * (infra) never trigger the fallback.
  */
 export const generateVisualizationEsql = async ({
   nlQuery,
@@ -123,8 +121,7 @@ export const generateVisualizationEsql = async ({
     ...(timeRange ? { timeRange } : {}),
   };
 
-  const lowEffortModel = await modelProvider.selectModel({ effortLevel: EffortLevels.low });
-  const response = await generateEsql({ ...requestParams, model: lowEffortModel });
+  const response = await generateEsql({ ...requestParams, modelProvider, maxRetries: 2 });
 
   if (response.query && !response.error) {
     return { query: response.query, columns: response.results?.columns };
@@ -132,18 +129,15 @@ export const generateVisualizationEsql = async ({
 
   const error = response.error ?? 'No queries generated';
 
-  const defaultModel = await modelProvider.getDefaultModel();
-  if (defaultModel.connector.connectorId === lowEffortModel.connector.connectorId) {
-    return { error };
-  }
-
   logger.warn(
     `ES|QL generation with the low-effort model failed (${error}), retrying with the default model`
   );
 
+  const defaultModel = await modelProvider.getDefaultModel();
   const fallbackResponse = await generateEsql({
     ...requestParams,
     model: defaultModel,
+    maxRetries: 1,
     additionalContext: buildFallbackContext(response.query, error),
   });
 

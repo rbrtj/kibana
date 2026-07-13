@@ -5,7 +5,6 @@
  * 2.0.
  */
 
-import { EffortLevels } from '@kbn/agent-builder-common';
 import type { ModelProvider, ScopedModel, ToolEventEmitter } from '@kbn/agent-builder-server';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
 import type { Logger } from '@kbn/logging';
@@ -24,11 +23,9 @@ const mockedGenerateEsql = jest.mocked(generateEsql);
 
 const logger = { debug: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as Logger;
 const events = {} as ToolEventEmitter;
-const lowEffortModel = { connector: { connectorId: 'fast-connector' } } as ScopedModel;
 const defaultModel = { connector: { connectorId: 'default-connector' } } as ScopedModel;
-const selectModel = jest.fn();
 const getDefaultModel = jest.fn();
-const modelProvider = { selectModel, getDefaultModel } as unknown as ModelProvider;
+const modelProvider = { getDefaultModel } as unknown as ModelProvider;
 const asCurrentUser = { name: 'current-user-client' };
 const esClient = { asCurrentUser } as unknown as IScopedClusterClient;
 
@@ -44,7 +41,6 @@ const params = {
 describe('generateVisualizationEsql', () => {
   beforeEach(() => {
     mockedGenerateEsql.mockReset();
-    selectModel.mockReset().mockResolvedValue(lowEffortModel);
     getDefaultModel.mockReset().mockResolvedValue(defaultModel);
   });
 
@@ -143,7 +139,7 @@ describe('generateVisualizationEsql', () => {
   });
 
   describe('default-model fallback', () => {
-    it('runs on the low-effort model and does not fall back on success', async () => {
+    it('runs on the low-effort model with two attempts and does not fall back on success', async () => {
       mockedGenerateEsql.mockResolvedValue({ query: 'FROM logs-*' } as Awaited<
         ReturnType<typeof generateEsql>
       >);
@@ -151,10 +147,9 @@ describe('generateVisualizationEsql', () => {
       const result = await generateVisualizationEsql(params);
 
       expect(result).toEqual({ query: 'FROM logs-*', columns: undefined });
-      expect(selectModel).toHaveBeenCalledWith({ effortLevel: EffortLevels.low });
       expect(mockedGenerateEsql).toHaveBeenCalledTimes(1);
       expect(mockedGenerateEsql).toHaveBeenCalledWith(
-        expect.objectContaining({ model: lowEffortModel })
+        expect.objectContaining({ modelProvider, maxRetries: 2 })
       );
       expect(getDefaultModel).not.toHaveBeenCalled();
     });
@@ -176,25 +171,11 @@ describe('generateVisualizationEsql', () => {
       expect(result).toEqual({ query: 'FROM logs-* | STATS c = COUNT() BY status', columns });
       expect(mockedGenerateEsql).toHaveBeenCalledTimes(2);
       const fallbackCall = mockedGenerateEsql.mock.calls[1][0];
-      expect(fallbackCall).toEqual(expect.objectContaining({ model: defaultModel }));
+      expect(fallbackCall).toEqual(expect.objectContaining({ model: defaultModel, maxRetries: 1 }));
       expect(fallbackCall.additionalContext).toContain(
         'FROM logs-* | STATS c = COUNT() BY status.keyword'
       );
       expect(fallbackCall.additionalContext).toContain('Unknown column [status.keyword]');
-    });
-
-    it('skips the fallback when both models resolve to the same connector', async () => {
-      getDefaultModel.mockResolvedValue({
-        connector: { connectorId: 'fast-connector' },
-      } as ScopedModel);
-      mockedGenerateEsql.mockResolvedValue({
-        error: 'parsing_exception',
-      } as Awaited<ReturnType<typeof generateEsql>>);
-
-      const result = await generateVisualizationEsql(params);
-
-      expect(result).toEqual({ error: 'parsing_exception' });
-      expect(mockedGenerateEsql).toHaveBeenCalledTimes(1);
     });
 
     it('returns the fallback error when the fallback also fails', async () => {
