@@ -16,9 +16,11 @@ import {
 } from './common';
 import { fieldSettingsWithPopularitySchema } from '../schema_field_settings';
 
-export const savedRuntimeFieldBaseSchema = fieldSettingsWithPopularitySchema.extend({
-  type: primitiveTypeSchema,
-}).meta({ id: 'kbn-saved-runtime-field-base-schema', title: 'Saved runtime field base' });
+export const savedRuntimeFieldBaseSchema = fieldSettingsWithPopularitySchema
+  .extend({
+    type: primitiveTypeSchema,
+  })
+  .meta({ id: 'kbn-saved-runtime-field-base-schema', title: 'Saved runtime field base' });
 
 export const savedPrimitiveRuntimeFieldSchema = savedRuntimeFieldBaseSchema
   .extend({

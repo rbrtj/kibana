@@ -115,7 +115,7 @@ describe('Format Schemas', () => {
         to: 'auto-approximate',
       };
 
-      const validated = formatTypeSchema.validate(input);
+      const validated = formatTypeSchema.parse(input);
       expect(validated).toEqual(input);
     });
 
@@ -126,7 +126,7 @@ describe('Format Schemas', () => {
         to: 'auto',
       };
 
-      const validated = formatTypeSchema.validate(input);
+      const validated = formatTypeSchema.parse(input);
       expect(validated).toEqual(input);
     });
 
@@ -137,7 +137,7 @@ describe('Format Schemas', () => {
         to: 'ms',
       };
 
-      const validated = formatTypeSchema.validate(input);
+      const validated = formatTypeSchema.parse(input);
       expect(validated).toEqual(input);
     });
   });
@@ -150,7 +150,7 @@ describe('Format Schemas', () => {
         to: 'humanize',
       };
 
-      const validated = formatTypeSchema.validate(input);
+      const validated = formatTypeSchema.parse(input);
       expect(validated).toEqual(input);
     });
 
@@ -161,7 +161,7 @@ describe('Format Schemas', () => {
         to: 'humanizePrecise',
       };
 
-      const validated = formatTypeSchema.validate(input);
+      const validated = formatTypeSchema.parse(input);
       expect(validated).toEqual(input);
     });
 
@@ -172,7 +172,7 @@ describe('Format Schemas', () => {
         to: 'humanize',
       };
 
-      expect(() => durationFormatSchema.validate(input)).toThrow();
+      expect(() => durationFormatSchema.parse(input)).toThrow();
     });
 
     it('rejects Lens state output names like `asMinutes` in the GA duration schema', () => {
@@ -182,7 +182,7 @@ describe('Format Schemas', () => {
         to: 'asMinutes',
       };
 
-      expect(() => durationFormatSchema.validate(input)).toThrow();
+      expect(() => durationFormatSchema.parse(input)).toThrow();
     });
 
     it('throws on missing required `to` field', () => {

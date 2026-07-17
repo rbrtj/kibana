@@ -8,7 +8,7 @@
  */
 
 import type { asCodeSearchRequestSchema } from '@kbn/as-code-shared-schemas';
-import { z } from '@kbn/zod';
+import type { z } from '@kbn/zod';
 import type { searchResponseBodySchema } from './schemas';
 
 // all search request params are optional

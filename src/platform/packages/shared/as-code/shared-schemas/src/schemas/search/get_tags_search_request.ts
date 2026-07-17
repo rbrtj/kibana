@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { TypeOf } from '@kbn/config-schema';
+import type { z } from '@kbn/zod';
 import type { asCodeSearchRequestSchema } from './schema';
 
 const normalizeToArray = (value?: string | string[]) => {
@@ -16,7 +16,7 @@ const normalizeToArray = (value?: string | string[]) => {
 };
 
 export const getTagsSearchRequest = (
-  tags: Pick<TypeOf<typeof asCodeSearchRequestSchema>, 'tags' | 'excluded_tags'>
+  tags: Pick<z.output<typeof asCodeSearchRequestSchema>, 'tags' | 'excluded_tags'>
 ) => {
   return { included: normalizeToArray(tags.tags), excluded: normalizeToArray(tags.excluded_tags) };
 };

@@ -36,12 +36,12 @@ import type { timeSliderControlSchema } from './time_slider_schema';
 type AllKeysOfUnion<T> = T extends unknown ? keyof T : never;
 type LooseUnion<T> = {
   [K in AllKeysOfUnion<T>]?: T extends unknown
-  ? K extends keyof T
-  ? [T[K]] extends [never]
-  ? never
-  : T[K]
-  : never
-  : never;
+    ? K extends keyof T
+      ? [T[K]] extends [never]
+        ? never
+        : T[K]
+      : never
+    : never;
 };
 
 export type ControlsGroupState = z.output<ReturnType<typeof getControlsGroupSchema>>;

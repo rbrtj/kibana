@@ -266,7 +266,7 @@ describe('Metric Operations Schemas', () => {
         operation: 'cumulative_sum' as const,
       };
 
-      const validated = cumulativeSumOperationSchema.validate(input);
+      const validated = cumulativeSumOperationSchema.parse(input);
       expect(validated).toEqual(input);
     });
 

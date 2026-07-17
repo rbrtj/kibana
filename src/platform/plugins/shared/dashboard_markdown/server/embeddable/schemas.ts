@@ -28,16 +28,22 @@ export const markdownStateSchema = z
   })
   .strict();
 
-export const markdownByValueStateSchema = serializedTitlesSchema
-  .extend(markdownStateSchema.shape)
+export const markdownByValueStateSchema = z
+  .object({
+    ...serializedTitlesSchema.shape,
+    ...markdownStateSchema.shape,
+  })
+  .strict()
   .meta(BY_VALUE_SCHEMA_META);
 
-const markdownByReferenceStateSchema = serializedTitlesSchema
-  .extend({
+const markdownByReferenceStateSchema = z
+  .object({
+    ...serializedTitlesSchema.shape,
     ref_id: z.string().meta({
       description: 'The unique identifier of the markdown library item.',
     }),
   })
+  .strict()
   .meta(BY_REF_SCHEMA_META);
 
 export const markdownEmbeddableSchema = z

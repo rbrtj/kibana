@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { z } from '@kbn/zod';
+import type { z } from '@kbn/zod';
 import type { createRequestBodySchema, createResponseBodySchema } from './schemas';
 
 export type LinksCreateRequestBody = z.output<typeof createRequestBodySchema>;

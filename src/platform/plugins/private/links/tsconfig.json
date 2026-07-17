@@ -17,7 +17,6 @@
     "@kbn/dashboard-plugin",
     "@kbn/embeddable-plugin",
     "@kbn/presentation-util-plugin",
-    "@kbn/object-versioning",
     "@kbn/content-management-utils",
     "@kbn/content-management-plugin",
     "@kbn/saved-objects-plugin",

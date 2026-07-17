@@ -244,14 +244,15 @@ export const movingAverageOperationSchema = metricOperationSharedSchema
 export const cumulativeSumOperationSchema = metricOperationSharedSchema
   .extend({
     operation: z.literal('cumulative_sum'),
-    field:
-      z.string().optional().meta({
+    field: z
+      .string()
+      .optional()
+      .meta({
         meta: {
           description:
             'Field to cumulatively sum. When omitted, cumulative sum is applied to the count of records.',
         },
-      })
-    ,
+      }),
   })
   .meta({ id: 'cumulativeSumOperation', title: METRIC_OP_TITLES.cumulativeSum });
 

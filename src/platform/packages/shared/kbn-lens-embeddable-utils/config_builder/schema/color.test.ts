@@ -221,7 +221,7 @@ describe('Color Schema', () => {
             palette,
           };
 
-          const validated = allColoringTypeSchema.validate(input);
+          const validated = allColoringTypeSchema.parse(input);
           expect(validated).toEqual(input);
         }
       );
@@ -232,7 +232,7 @@ describe('Color Schema', () => {
             type: 'distributed_palette',
           };
 
-          expect(() => allColoringTypeSchema.validate(input)).toThrow();
+          expect(() => allColoringTypeSchema.parse(input)).toThrow();
         });
 
         it('throws for an unknown palette id', () => {
@@ -241,7 +241,7 @@ describe('Color Schema', () => {
             palette: 'test',
           };
 
-          expect(() => allColoringTypeSchema.validate(input)).toThrow();
+          expect(() => allColoringTypeSchema.parse(input)).toThrow();
         });
 
         it('throws for a categorical (non dynamic-coloring) palette id', () => {
@@ -250,7 +250,7 @@ describe('Color Schema', () => {
             palette: 'default',
           };
 
-          expect(() => allColoringTypeSchema.validate(input)).toThrow();
+          expect(() => allColoringTypeSchema.parse(input)).toThrow();
         });
       });
     });

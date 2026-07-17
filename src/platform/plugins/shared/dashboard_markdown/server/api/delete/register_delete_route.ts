@@ -42,7 +42,8 @@ export function registerDeleteRoute(
           params: z
             .object({
               id: z.string().meta({
-                description: 'The markdown library item ID, as returned by the create or search endpoints.',
+                description:
+                  'The markdown library item ID, as returned by the create or search endpoints.',
               }),
             })
             .strict(),
