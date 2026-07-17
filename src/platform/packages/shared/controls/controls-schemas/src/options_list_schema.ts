@@ -16,8 +16,9 @@ import {
 } from '@kbn/controls-constants';
 import {
   controlTitleSchema,
-  dataControlEsqlVariantProps,
-  dataControlFieldVariantProps,
+  dataControlEsqlVariantSchema,
+  dataControlFieldVariantSchema,
+  withFieldValuesSourceDefault,
 } from './control_schema';
 
 export const optionsListDisplaySettingsSchema = z
@@ -105,19 +106,22 @@ const optionsListDSLExtras = {
   sort: optionsListSortSchema,
 };
 
-export const optionsListDSLControlSchema = z.discriminatedUnion('values_source', [
-  z.object({ ...dataControlEsqlVariantProps, ...optionsListDSLExtras }).meta({
-    id: 'kbn-controls-schemas-options-list-dsl-control-schema-esql',
-    title: 'EsqlOptionsListControl',
-    description:
-      "An options list control whose available options come from an ES|QL query's results.",
-  }),
-  z.object({ ...dataControlFieldVariantProps, ...optionsListDSLExtras }).meta({
-    id: 'kbn-controls-schemas-options-list-dsl-control-schema-field',
-    title: 'FieldOptionsListControl',
-    description: 'An options list control whose available options come from a data view field.',
-  }),
-]);
+export const optionsListDSLControlSchema = z.preprocess(
+  withFieldValuesSourceDefault,
+  z.discriminatedUnion('values_source', [
+    dataControlEsqlVariantSchema.extend(optionsListDSLExtras).meta({
+      id: 'kbn-controls-schemas-options-list-dsl-control-schema-esql',
+      title: 'EsqlOptionsListControl',
+      description:
+        "An options list control whose available options come from an ES|QL query's results.",
+    }),
+    dataControlFieldVariantSchema.extend(optionsListDSLExtras).meta({
+      id: 'kbn-controls-schemas-options-list-dsl-control-schema-field',
+      title: 'FieldOptionsListControl',
+      description: 'An options list control whose available options come from a data view field.',
+    }),
+  ])
+);
 
 const baseEsqlControlSchema = z
   .object({
