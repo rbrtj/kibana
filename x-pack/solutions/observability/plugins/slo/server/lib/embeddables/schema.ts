@@ -14,14 +14,14 @@ import { SLO_EMBEDDABLE_SUPPORTED_TRIGGERS } from '../../../common/embeddables/o
 
 const SingleOverviewCustomSchema = z
   .object({
-    slo_id: z.string().meta({
+    slo_id: z.string().max(64).meta({
       description: 'The ID of the SLO',
     }),
-    slo_instance_id: z.string().default(ALL_VALUE).meta({
+    slo_instance_id: z.string().max(512).default(ALL_VALUE).meta({
       description:
         'ID of the SLO instance. Set when the SLO uses group_by; identifies which instance to show. Defaults to * (all instances).',
     }),
-    remote_name: z.string().optional().meta({ description: 'The name of the remote SLO' }),
+    remote_name: z.string().max(256).optional().meta({ description: 'The name of the remote SLO' }),
     overview_mode: z.literal('single'),
   })
   .strict();
@@ -41,10 +41,10 @@ const GroupOverviewCustomSchema = z
       .object({
         group_by: groupBySchema,
         // Bounded to avoid unbounded-array warnings; 100 aligns with other embeddable list limits.
-        groups: z.array(z.string()).max(100).optional(),
+        groups: z.array(z.string().max(256)).max(100).optional(),
         // Bounded to avoid unbounded-array warnings; 500 matches dashboard filters limit.
         filters: z.array(asCodeFilterSchema).max(500).optional(),
-        kql_query: z.string().optional(),
+        kql_query: z.string().max(2048).optional(),
       })
       .strict()
       .default({ group_by: 'status' }),

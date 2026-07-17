@@ -7,8 +7,8 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { ZodType } from '@kbn/zod';
 import { z } from '@kbn/zod';
+import type { ZodType } from '@kbn/zod';
 
 import type { MetricConfig, MetricConfigESQL, MetricConfigNoESQL } from './charts/metric';
 import {
@@ -253,6 +253,12 @@ export type LensApiConfigChartType = LensApiConfig['type'];
 export type LensApiConfigByType = {
   [K in LensApiConfig['type']]: Extract<LensApiConfig, { type: K }>;
 };
+
+export { durationFormatSchema, legacyDurationFormatSchema } from './duration_units';
+export {
+  gaDurationInputUnitToLegacyApi,
+  gaDurationOutputUnitToLegacyApi,
+} from '../transforms/columns/duration_units';
 
 export {
   // Combined schemas

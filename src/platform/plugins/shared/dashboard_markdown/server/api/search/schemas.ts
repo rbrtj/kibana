@@ -10,20 +10,9 @@
 import { z } from '@kbn/zod';
 import {
   asCodeMetaSchema,
-  asCodePaginationParamsSchema,
   asCodePaginationResponseMetaSchema,
   PAGINATION_MAX_SIZE,
 } from '@kbn/as-code-shared-schemas';
-
-export const searchRequestQuerySchema = z
-  .object({
-    query: z.string().optional().meta({
-      description:
-        'Filters results by `title` and `description` using Elasticsearch [`simple_query_string`](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-simple-query-string-query) syntax. Multi-word terms require all words to match.',
-    }),
-    ...asCodePaginationParamsSchema.shape,
-  })
-  .strict();
 
 export const searchResponseBodySchema = z
   .object({
@@ -37,7 +26,7 @@ export const searchResponseBodySchema = z
                 description: z
                   .string()
                   .optional()
-                  .meta({ description: 'The markdown library item description.' }),
+                  .meta({ description: 'A short description of the markdown library item.' }),
                 title: z.string().meta({ description: 'The markdown library item title.' }),
               })
               .strict(),

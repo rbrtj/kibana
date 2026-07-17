@@ -10,7 +10,7 @@
 import { z } from '@kbn/zod';
 import { DataGridDensity } from '@kbn/discover-utils';
 import { asCodeQuerySchema } from '@kbn/as-code-shared-schemas';
-import { dataViewSchema, esqlDataSourceSchema } from '@kbn/as-code-data-views-schema';
+import { esqlDataSourceSchema } from '@kbn/as-code-data-views-schema';
 import {
   BY_REF_SCHEMA_META,
   BY_VALUE_SCHEMA_META,
@@ -19,6 +19,7 @@ import {
 } from '@kbn/presentation-publishing-schemas';
 import { VIEW_MODE } from '@kbn/saved-search-plugin/common';
 import { asCodeFilterSchema } from '@kbn/as-code-filters-schema';
+import { dataViewSchema } from '@kbn/as-code-data-views-schema';
 import type { GetDrilldownsSchemaFnType } from '@kbn/embeddable-plugin/server';
 import { ON_OPEN_PANEL_MENU } from '@kbn/ui-actions-plugin/common/trigger_ids';
 
@@ -54,7 +55,7 @@ export const viewModeSchema = z
       'Discover view mode. Choose "documents" (search hits), "patterns" (pattern analysis), or "aggregated" (field statistics).',
   });
 
-const dataTableLimitsSchema = z
+export const dataTableLimitsSchema = z
   .object({
     rows_per_page: z.number().min(1).max(10000).default(100).optional().meta({
       description:
@@ -68,14 +69,10 @@ const dataTableLimitsSchema = z
   .strict()
   .meta({ id: 'discoverSessionEmbeddableDataTableLimitsSchema' });
 
-const dataTableSchema = z
+export const dataTableSchema = z
   .object({
     column_order: z
-      .array(
-        z.string().meta({
-          description: 'Field name of a column in display order.',
-        })
-      )
+      .array(z.string().meta({ description: 'Field name of a column in display order.' }))
       .max(100)
       .default([])
       .optional()
@@ -122,14 +119,10 @@ const dataTableSchema = z
   .strict()
   .meta({ id: 'discoverSessionEmbeddableDataTableSchema' });
 
-const panelOverridesSchema = z
+export const panelOverridesSchema = z
   .object({
     column_order: z
-      .array(
-        z.string().meta({
-          description: 'Field name of a column in display order.',
-        })
-      )
+      .array(z.string().meta({ description: 'Field name of a column in display order.' }))
       .max(100)
       .default([])
       .optional()
@@ -185,7 +178,7 @@ const panelOverridesSchema = z
   .strict()
   .default({});
 
-const classicTabSchema = z
+export const classicTabSchema = z
   .object({
     ...dataTableSchema.shape,
     ...dataTableLimitsSchema.shape,
@@ -198,8 +191,10 @@ const classicTabSchema = z
   })
   .strict();
 
-const esqlTabSchema = dataTableSchema
-  .extend({
+export const esqlTabSchema = z
+  .object({
+    ...dataTableSchema.shape,
+    ...dataTableLimitsSchema.shape,
     data_source: esqlDataSourceSchema,
   })
   .strict()
@@ -207,7 +202,7 @@ const esqlTabSchema = dataTableSchema
     description: 'ES|QL (Elasticsearch Query Language) data source.',
   });
 
-const tabSchema = z.union([classicTabSchema, esqlTabSchema]);
+export const tabSchema = z.union([classicTabSchema, esqlTabSchema]);
 
 const DISCOVER_SUPPORTED_DRILLDOWN_TRIGGERS = [ON_OPEN_PANEL_MENU];
 
@@ -242,7 +237,7 @@ const discoverSessionByValuePropsSchema = z
   .strict();
 const getDiscoverSessionByValueEmbeddableSchema = withPanelSchemas(
   discoverSessionByValuePropsSchema,
-  BY_VALUE_SCHEMA_META
+  { meta: BY_VALUE_SCHEMA_META }
 );
 
 const discoverSessionByReferencePropsSchema = z
@@ -257,7 +252,7 @@ const discoverSessionByReferencePropsSchema = z
   .strict();
 const getDiscoverSessionByReferenceEmbeddableSchema = withPanelSchemas(
   discoverSessionByReferencePropsSchema,
-  BY_REF_SCHEMA_META
+  { meta: BY_REF_SCHEMA_META }
 );
 
 export const getDiscoverSessionEmbeddableSchema = (

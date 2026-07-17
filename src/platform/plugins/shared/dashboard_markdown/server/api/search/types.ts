@@ -8,7 +8,8 @@
  */
 
 import type { z } from '@kbn/zod';
-import type { searchRequestQuerySchema, searchResponseBodySchema } from './schemas';
+import type { asCodeSearchRequestSchema } from '@kbn/as-code-shared-schemas';
+import type { searchResponseBodySchema } from './schemas';
 
-export type MarkdownSearchRequestQuery = z.output<typeof searchRequestQuerySchema>;
+export type MarkdownSearchRequestQuery = Partial<z.output<typeof asCodeSearchRequestSchema>>;
 export type MarkdownSearchResponseBody = z.output<typeof searchResponseBodySchema>;

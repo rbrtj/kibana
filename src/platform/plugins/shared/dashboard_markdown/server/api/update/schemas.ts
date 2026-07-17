@@ -15,7 +15,9 @@ export const updateRequestBodySchema = markdownLibraryItemSchema;
 
 export const updateResponseBodySchema = z
   .object({
-    id: z.string(),
+    id: z.string().meta({
+      description: 'The unique ID of the markdown library item, as returned by the create or search endpoints.',
+    }),
     data: markdownLibraryItemSchema,
     meta: asCodeMetaSchema,
   })

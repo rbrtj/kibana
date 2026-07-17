@@ -9,7 +9,7 @@
 
 import { z } from '@kbn/zod';
 
-export const indexPatternSchema = z.string().meta({
+export const indexPatternSchema = z.string().min(1).meta({
   id: 'kbn-index-pattern-schema',
   title: 'Index pattern',
   description:

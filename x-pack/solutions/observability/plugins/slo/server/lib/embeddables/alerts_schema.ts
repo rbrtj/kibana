@@ -12,8 +12,8 @@ import { SLO_ALERTS_SUPPORTED_TRIGGERS } from '../../../common/embeddables/alert
 
 const sloItemSchema = z
   .object({
-    slo_id: z.string().meta({ description: 'SLO ID' }),
-    slo_instance_id: z.string().default('*').meta({ description: 'SLO instance ID' }),
+    slo_id: z.string().max(64).meta({ description: 'SLO ID' }),
+    slo_instance_id: z.string().max(512).default('*').meta({ description: 'SLO instance ID' }),
   })
   .strict();
 

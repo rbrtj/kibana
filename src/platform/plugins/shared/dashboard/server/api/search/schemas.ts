@@ -9,10 +9,15 @@
 
 import { z } from '@kbn/zod';
 import { timeRangeSchema } from '@kbn/es-query-server';
-import { asCodeMetaSchema } from '@kbn/as-code-shared-schemas';
+import {
+  asCodeMetaSchema,
+  asCodePaginationResponseMetaSchema,
+  getAsCodeTagsSchema,
+  PAGINATION_MAX_SIZE,
+} from '@kbn/as-code-shared-schemas';
 import { accessControlSchema } from '../dashboard_state_schemas';
 
-export const searchRequestParamsSchema = z
+export const legacySearchRequestParamsSchema = z
   .object({
     page: z.coerce.number().optional().meta({
       description: 'The page of results to return. Defaults to `1`.',
@@ -41,7 +46,7 @@ export const searchRequestParamsSchema = z
   })
   .strict();
 
-export const searchResponseBodySchema = z
+export const legacySearchResponseBodySchema = z
   .object({
     dashboards: z
       .array(
@@ -54,11 +59,7 @@ export const searchResponseBodySchema = z
                   .string()
                   .optional()
                   .meta({ description: 'A short description of the dashboard.' }),
-                tags: z
-                  .array(z.string())
-                  .max(100)
-                  .optional()
-                  .meta({ description: 'Tag IDs associated with this dashboard.' }),
+                tags: getAsCodeTagsSchema('Tag IDs associated with this dashboard.').optional(),
                 time_range: timeRangeSchema.optional(),
                 title: z.string().meta({ description: 'The dashboard title.' }),
                 access_control: accessControlSchema,
@@ -72,7 +73,46 @@ export const searchResponseBodySchema = z
         description:
           'List of dashboards matching the query. Each entry includes summary fields but not the full panel layout.',
       }),
-    total: z.number().meta({ description: 'The total number of dashboards matching the query.' }),
-    page: z.number().meta({ description: 'The current page number.' }),
+    page: z.number().meta({
+      description: 'The page of results returned.',
+    }),
+    total: z.number().meta({
+      description: 'The total number of dashboards matching the query.',
+    }),
+  })
+  .strict();
+
+export const searchResponseBodySchema = z
+  .object({
+    data: z
+      .array(
+        z
+          .object({
+            id: z.string().meta({ description: 'The dashboard ID.' }),
+            data: z
+              .object({
+                description: z
+                  .string()
+                  .optional()
+                  .meta({ description: 'A short description of the dashboard.' }),
+                tags: getAsCodeTagsSchema(
+                  'Tag IDs associated with this dashboard.',
+                  100
+                ).optional(),
+                time_range: timeRangeSchema.optional(),
+                title: z.string().meta({ description: 'The dashboard title.' }),
+                access_control: accessControlSchema,
+              })
+              .strict(),
+            meta: asCodeMetaSchema,
+          })
+          .strict()
+      )
+      .max(PAGINATION_MAX_SIZE)
+      .meta({
+        description:
+          'List of dashboards matching the query. Each entry includes summary fields but not the full panel layout.',
+      }),
+    meta: asCodePaginationResponseMetaSchema,
   })
   .strict();

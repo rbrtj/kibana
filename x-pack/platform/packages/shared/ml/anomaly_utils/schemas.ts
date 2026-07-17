@@ -21,24 +21,24 @@ const mlEntityFieldOperationSchema = z.union([
 
 export const influencerSchema = z
   .object({
-    fieldName: z.string(),
+    fieldName: z.string().max(10000),
     fieldValue: z.any().optional(),
   })
   .strict();
 
 export const criteriaFieldSchema = z
   .object({
-    fieldName: z.string(),
+    fieldName: z.string().max(10000),
     fieldValue: z.any().optional(),
     fieldType: mlEntityFieldTypeSchema.optional(),
   })
   .strict();
 
-export const mlEntityFieldValueSchema = z.union([z.string(), z.number()]);
+export const mlEntityFieldValueSchema = z.union([z.string().max(10000), z.number()]);
 
 export const mlEntityFieldSchema = z
   .object({
-    fieldName: z.string(),
+    fieldName: z.string().max(10000),
     fieldValue: mlEntityFieldValueSchema.optional(),
     fieldType: mlEntityFieldTypeSchema.optional(),
     operation: mlEntityFieldOperationSchema.optional(),

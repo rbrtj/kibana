@@ -20,3 +20,7 @@ export const asCodeResponseSchema = z
     }),
   })
   .strict();
+
+export const savedDataViewSpecSchemaWithoutId = savedDataViewSpecSchema.extend({
+  id: z.never(),
+});

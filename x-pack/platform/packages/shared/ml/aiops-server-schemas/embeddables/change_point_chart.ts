@@ -34,19 +34,19 @@ export const changePointChartEmbeddableStateSchema = z
   .object({
     ...serializedTitlesSchema.shape,
     ...serializedTimeRangeSchema.shape,
-    data_view_id: z.string().min(1).meta({
+    data_view_id: z.string().min(1).max(10000).meta({
       description: 'The data view ID used to run change point detection.',
     }),
     view_type: viewTypeSchema,
     aggregation_function: aggregationFunctionSchema,
-    metric_field: z.string().min(1).meta({
+    metric_field: z.string().min(1).max(10000).meta({
       description: 'The metric field used by the aggregation function.',
     }),
-    split_field: z.string().min(1).optional().meta({
+    split_field: z.string().min(1).max(10000).optional().meta({
       description: 'The optional field used to split change point results.',
     }),
     partitions: z
-      .array(z.string().min(1))
+      .array(z.string().min(1).max(10000))
       .max(10000)
       .optional()
       .meta({ description: 'Optional split field values to include in the panel.' }),
