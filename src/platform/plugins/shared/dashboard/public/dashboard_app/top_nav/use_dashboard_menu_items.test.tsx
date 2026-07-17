@@ -7,13 +7,14 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 import type { AppMenuPopoverItem } from '@kbn/core-chrome-app-menu-components';
 import type { ShareActionIntents } from '@kbn/share-plugin/public/types';
 
 import { dashboardContextWrapper } from '../../mocks';
 import { coreServices, shareService } from '../../services/kibana_services';
+import { dashboardTopNavMenuItemsService } from '../../services/dashboard_top_nav_menu_items_service';
 import { useDashboardMenuItems } from './use_dashboard_menu_items';
 import { BehaviorSubject } from 'rxjs';
 import type { DashboardApi } from '../../dashboard_api/types';
@@ -21,10 +22,41 @@ import type { DashboardApi } from '../../dashboard_api/types';
 describe('useDashboardMenuItems', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    dashboardTopNavMenuItemsService.clear();
 
     jest
       .mocked(shareService!.availableIntegrations)
       .mockImplementation(() => [] as ShareActionIntents[]);
+  });
+
+  test('includes registered Dashboard header items in view and edit mode', () => {
+    const unregister = dashboardTopNavMenuItemsService.register(() => ({
+      id: 'registered-item',
+      label: 'Registered item',
+      iconType: 'sparkles',
+      order: 0,
+      run: jest.fn(),
+    }));
+
+    const { result } = renderHook(
+      () =>
+        useDashboardMenuItems({
+          isLabsShown: false,
+          setIsLabsShown: jest.fn(),
+          maybeRedirect: jest.fn(),
+        }),
+      {
+        wrapper: dashboardContextWrapper({ savedObjectId: 'test-id' }),
+      }
+    );
+
+    expect(result.current.viewModeTopNavConfig.items?.map(({ id }) => id)).toContain(
+      'registered-item'
+    );
+    expect(result.current.editModeTopNavConfig.items?.map(({ id }) => id)).toContain(
+      'registered-item'
+    );
+    act(() => unregister());
   });
 
   describe('Export', () => {

@@ -28,6 +28,7 @@ import { useDashboardApi } from '../../dashboard_api/use_dashboard_api';
 import { confirmDiscardUnsavedChanges } from '../../dashboard_listing/confirm_overlays';
 import { openSettingsFlyout } from '../../dashboard_renderer/settings/open_settings_flyout';
 import { getDashboardBackupService } from '../../services/dashboard_api_services';
+import { dashboardTopNavMenuItemsService } from '../../services/dashboard_top_nav_menu_items_service';
 import type { SaveDashboardReturn } from '../../dashboard_api/save_modal/types';
 import { coreServices, shareService, dataService } from '../../services/kibana_services';
 import { getDashboardCapabilities } from '../../utils/get_dashboard_capabilities';
@@ -53,6 +54,11 @@ export const useDashboardMenuItems = ({
   const [isSaveInProgress, setIsSaveInProgress] = useState(false);
 
   const dashboardApi = useDashboardApi();
+  const registeredMenuItemFactories = useObservable(dashboardTopNavMenuItemsService.get$(), []);
+  const registeredMenuItems = useMemo(
+    () => registeredMenuItemFactories.map((factory) => factory(dashboardApi)),
+    [dashboardApi, registeredMenuItemFactories]
+  );
 
   const [hasOverlays, hasUnsavedChanges, lastSavedId, viewMode, accessControl] =
     useBatchedPublishingSubjects(
@@ -447,7 +453,7 @@ export const useDashboardMenuItems = ({
   const viewModeTopNavConfig = useMemo(() => {
     const { showWriteControls, storeSearchSession } = getDashboardCapabilities();
 
-    const items: AppMenuItemType[] = [menuItems.fullScreen];
+    const items: AppMenuItemType[] = [...registeredMenuItems, menuItems.fullScreen];
 
     if (showWriteControls) {
       items.push(menuItems.duplicate);
@@ -495,12 +501,14 @@ export const useDashboardMenuItems = ({
     showResetChange,
     isLabsEnabled,
     hasExportMenuItems,
+    registeredMenuItems,
   ]);
 
   const editModeTopNavConfig = useMemo(() => {
     const { storeSearchSession } = getDashboardCapabilities();
 
     const items: AppMenuItemType[] = [
+      ...registeredMenuItems,
       menuItems.add,
       menuItems.switchToViewMode,
       menuItems.settings,
@@ -539,6 +547,7 @@ export const useDashboardMenuItems = ({
     menuItems.add,
     hasExportMenuItems,
     isLabsEnabled,
+    registeredMenuItems,
   ]);
 
   return { viewModeTopNavConfig, editModeTopNavConfig };

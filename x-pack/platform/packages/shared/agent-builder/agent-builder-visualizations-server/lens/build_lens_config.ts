@@ -25,6 +25,8 @@ export interface BuildLensConfigParams {
   parsedExistingConfig?: VisualizationConfig | null;
   includeTimeRange?: boolean;
   additionalChartConfigInstructions?: string;
+  /** Ask the config generator for a short NL summary of changes vs the existing config. */
+  includeChangeSummary?: boolean;
   modelProvider: ModelProvider;
   logger: Logger;
   events: ToolEventEmitter;
@@ -35,6 +37,7 @@ interface BuildLensConfigResult {
   selectedChartType: SupportedChartType;
   validatedConfig: VisualizationConfig;
   esqlQuery: string;
+  changeSummary?: string;
   timeRange?: { from: string; to: string };
 }
 
@@ -47,6 +50,7 @@ export const buildLensConfig = async ({
   parsedExistingConfig = null,
   includeTimeRange = true,
   additionalChartConfigInstructions,
+  includeChangeSummary = false,
   modelProvider,
   logger,
   events,
@@ -70,7 +74,8 @@ export const buildLensConfig = async ({
     events,
     esClient,
     includeTimeRange,
-    additionalChartConfigInstructions
+    additionalChartConfigInstructions,
+    includeChangeSummary
   );
 
   // If the user provides ES|QL, use it only when validation says it is safe.
@@ -105,10 +110,12 @@ export const buildLensConfig = async ({
     currentAttempt: 0,
     actions: [],
     validatedConfig: null,
+    changeSummary: null,
     error: null,
   });
 
-  const { validatedConfig, error, currentAttempt, esqlQuery, timeRange } = finalState;
+  const { validatedConfig, error, currentAttempt, esqlQuery, timeRange, changeSummary } =
+    finalState;
 
   if (!validatedConfig) {
     throw new Error(
@@ -122,6 +129,7 @@ export const buildLensConfig = async ({
     selectedChartType,
     validatedConfig,
     esqlQuery,
+    ...(changeSummary && { changeSummary }),
     ...(timeRange && { timeRange }),
   };
 };

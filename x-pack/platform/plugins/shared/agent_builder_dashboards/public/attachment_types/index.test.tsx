@@ -7,7 +7,11 @@
 
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import type { ChromeStart } from '@kbn/core/public';
-import type { DashboardApi, DashboardStart } from '@kbn/dashboard-plugin/public';
+import type {
+  DashboardApi,
+  DashboardStart,
+  DashboardTopNavMenuItemFactory,
+} from '@kbn/dashboard-plugin/public';
 import type { DashboardSaveEvent } from '@kbn/dashboard-plugin/public';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
 import { dataPluginMock } from '@kbn/data-plugin/public/mocks';
@@ -28,6 +32,7 @@ import type { ActiveConversation } from '@kbn/agent-builder-browser/events';
 import { registerDashboardAttachmentUiDefinition } from '.';
 
 jest.mock('@kbn/dashboard-plugin/public', () => ({
+  DASHBOARD_PRETTIFY_BUTTON_ID: 'dashboardPrettifyButton',
   DashboardRenderer: jest.fn(() => null),
 }));
 
@@ -189,6 +194,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
     };
     const dashboardAppClientApi$ = new Subject<DashboardApi | undefined>();
     const addAttachmentType = jest.fn();
+    const openChat = jest.fn();
     const updateAttachmentOrigin = jest.fn().mockResolvedValue(undefined);
     const findDashboardsService = jest.fn().mockResolvedValue({
       findById: jest.fn().mockResolvedValue({ status: 'success' }),
@@ -202,6 +208,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
     const agentBuilder: AgentBuilderPluginStart = {
       attachments: { addAttachmentType },
       addAttachment: mockAddAttachment,
+      openChat,
       updateAttachmentOrigin,
       events: {
         getChatEvents$: jest.fn((conversationId: string) =>
@@ -217,9 +224,14 @@ describe('registerDashboardAttachmentUiDefinition', () => {
       },
     } as unknown as ChromeStart;
 
+    const unregisterDashboardTopNavMenuItem = jest.fn();
+    const registerDashboardTopNavMenuItem = jest
+      .fn()
+      .mockReturnValue(unregisterDashboardTopNavMenuItem);
     const dashboardPlugin: DashboardStart = {
       dashboardAppClientApi$,
       findDashboardsService,
+      registerDashboardTopNavMenuItem,
     } as unknown as DashboardStart;
 
     const data = dataPluginMock.createStartContract();
@@ -239,8 +251,11 @@ describe('registerDashboardAttachmentUiDefinition', () => {
       dashboardLocator: undefined,
       dashboardAppClientApi$,
       addAttachmentType,
+      openChat,
       updateAttachmentOrigin,
       findDashboardsService,
+      registerDashboardTopNavMenuItem,
+      unregisterDashboardTopNavMenuItem,
       emitConversationChange,
       emitChatEvent: (conversationId: string, event: ChatEvent) => {
         getChatEvents(conversationId).next(event);
@@ -339,6 +354,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
       dashboardPlugin: {
         dashboardAppClientApi$,
         findDashboardsService,
+        registerDashboardTopNavMenuItem: jest.fn().mockReturnValue(jest.fn()),
       } as unknown as DashboardStart,
       data: dataPluginMock.createStartContract(),
       unifiedSearch: {
@@ -351,6 +367,54 @@ describe('registerDashboardAttachmentUiDefinition', () => {
       cleanup = registerDashboardAttachmentUiDefinition(syncDeps);
     }).not.toThrow();
     cleanup?.();
+  });
+
+  it('registers a Prettify header button that starts a new chat with the dashboard', () => {
+    const menuItemFactory = deps.registerDashboardTopNavMenuItem.mock
+      .calls[0][0] as DashboardTopNavMenuItemFactory;
+    const dashboardApi = createMockDashboardApi('dashboard-id');
+    dashboardApi.getSerializedState.mockReturnValue({
+      attributes: {
+        title: 'Dashboard title',
+        description: 'Dashboard description',
+        panels: [],
+      },
+    });
+
+    const menuItem = menuItemFactory(dashboardApi);
+    expect(menuItem).toEqual(
+      expect.objectContaining({
+        id: 'prettify',
+        htmlId: 'dashboardPrettifyButton',
+        label: 'Prettify',
+        iconType: 'sparkles',
+        testId: 'dashboardPrettifyButton',
+      })
+    );
+
+    menuItem.run?.();
+
+    expect(deps.openChat).toHaveBeenCalledWith({
+      newConversation: true,
+      initialMessage: '/dashboard-management Make this dashboard ✨Pretty✨',
+      autoSendInitialMessage: true,
+      attachments: [
+        expect.objectContaining({
+          origin: 'dashboard-id',
+          type: DASHBOARD_ATTACHMENT_TYPE,
+          data: expect.objectContaining({
+            title: 'Dashboard title',
+            description: 'Dashboard description',
+            panels: [],
+          }),
+        }),
+      ],
+    });
+  });
+
+  it('unregisters the Prettify header button on cleanup', () => {
+    unregister();
+    expect(deps.unregisterDashboardTopNavMenuItem).toHaveBeenCalled();
   });
 
   describe('dashboard app integration - origin sync', () => {

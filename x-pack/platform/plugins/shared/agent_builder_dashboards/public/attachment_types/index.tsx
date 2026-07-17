@@ -13,16 +13,29 @@ import { ActionButtonType } from '@kbn/agent-builder-browser/attachments';
 import type { ChromeStart } from '@kbn/core/public';
 import type { DataPublicPluginStart } from '@kbn/data-plugin/public';
 import type { UpdateOriginResponse } from '@kbn/agent-builder-common';
-import { DASHBOARD_ATTACHMENT_TYPE } from '@kbn/agent-builder-dashboards-common';
+import {
+  DASHBOARD_ATTACHMENT_TYPE,
+  dashboardStateToAttachmentData,
+} from '@kbn/agent-builder-dashboards-common';
 import type { DashboardAttachment } from '@kbn/agent-builder-dashboards-common/types';
 import type {
   DashboardApi,
   DashboardRendererProps,
   DashboardStart,
 } from '@kbn/dashboard-plugin/public';
+import { DASHBOARD_PRETTIFY_BUTTON_ID } from '@kbn/dashboard-plugin/public';
 import type { UnifiedSearchPublicPluginStart } from '@kbn/unified-search-plugin/public';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
 import type { DashboardCanvasAttachmentProps } from './async_services';
+
+const PRETTIFY_DASHBOARD_MESSAGE = '/dashboard-management Make this dashboard ✨Pretty✨';
+
+const prettifyDashboardButtonLabel = i18n.translate(
+  'xpack.agentBuilderDashboards.dashboardTopNav.prettifyButtonLabel',
+  {
+    defaultMessage: 'Prettify',
+  }
+);
 
 export interface IdGenerator {
   readonly current: string;
@@ -69,6 +82,33 @@ export const registerDashboardAttachmentUiDefinition = ({
 }): (() => void) => {
   let dashboardApi: DashboardApi | undefined;
   const draftAttachmentId = createIdGenerator();
+  const unregisterPrettifyMenuItem = dashboardPlugin.registerDashboardTopNavMenuItem(
+    (currentDashboardApi) => ({
+      order: 0,
+      label: prettifyDashboardButtonLabel,
+      id: 'prettify',
+      htmlId: DASHBOARD_PRETTIFY_BUTTON_ID,
+      iconType: 'sparkles',
+      testId: DASHBOARD_PRETTIFY_BUTTON_ID,
+      run: () => {
+        agentBuilder.openChat({
+          newConversation: true,
+          initialMessage: PRETTIFY_DASHBOARD_MESSAGE,
+          autoSendInitialMessage: true,
+          attachments: [
+            {
+              id: draftAttachmentId.current,
+              origin: currentDashboardApi.savedObjectId$.getValue(),
+              type: DASHBOARD_ATTACHMENT_TYPE,
+              data: dashboardStateToAttachmentData(
+                currentDashboardApi.getSerializedState().attributes
+              ),
+            },
+          ],
+        });
+      },
+    })
+  );
   const findDashboardsServicePromise = dashboardPlugin.findDashboardsService();
   const checkSavedDashboardExist = async (dashboardId: string) => {
     const findDashboardsService = await findDashboardsServicePromise;
@@ -172,6 +212,7 @@ export const registerDashboardAttachmentUiDefinition = ({
   });
 
   return () => {
+    unregisterPrettifyMenuItem();
     dashboardAppApiSubscription.unsubscribe();
     dashboardApi = undefined;
     updateOriginByAttachmentId.clear();

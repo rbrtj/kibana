@@ -84,6 +84,10 @@ import { setupUrlForwarding } from './dashboard_app/url/setup_url_forwarding';
 import type { FindDashboardsService } from './dashboard_client';
 import { DASHBOARD_DURATION_START_MARK } from './dashboard_api/telemetry/dashboard_duration_start_mark';
 import type { DashboardApi } from './dashboard_api/types';
+import {
+  dashboardTopNavMenuItemsService,
+  type DashboardTopNavMenuItemFactory,
+} from './services/dashboard_top_nav_menu_items_service';
 
 export interface DashboardSetupDependencies {
   data: DataPublicPluginSetup;
@@ -143,6 +147,14 @@ export interface DashboardStart {
   findDashboardsService: () => Promise<FindDashboardsService>;
 
   dashboardAppClientApi$: PublishingSubject<DashboardApi | undefined>;
+
+  /**
+   * Registers an item in the Dashboard header menu.
+   *
+   * The factory receives the Dashboard API for the dashboard whose header is being rendered.
+   * The returned cleanup function removes the item.
+   */
+  registerDashboardTopNavMenuItem: (menuItemFactory: DashboardTopNavMenuItemFactory) => () => void;
 }
 
 export class DashboardPlugin
@@ -374,6 +386,8 @@ export class DashboardPlugin
         return findService;
       },
       dashboardAppClientApi$: this.dashboardAppApi$,
+      registerDashboardTopNavMenuItem: (menuItemFactory) =>
+        dashboardTopNavMenuItemsService.register(menuItemFactory),
     };
   }
 
@@ -382,5 +396,8 @@ export class DashboardPlugin
       this.stopUrlTracking();
     }
     this.appStateSubscription?.unsubscribe();
+    dashboardTopNavMenuItemsService.clear();
   }
 }
+
+export type { DashboardTopNavMenuItemFactory } from './services/dashboard_top_nav_menu_items_service';
