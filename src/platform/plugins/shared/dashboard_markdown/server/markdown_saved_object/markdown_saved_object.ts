@@ -30,7 +30,7 @@ type MarkdownByValueStateCompat = {
 const markdownByValueStateSchema = schema.object({
   content: schema.string(),
   settings: schema.object({
-    open_links_in_new_tab: schema.boolean(),
+    open_links_in_new_tab: schema.boolean({ defaultValue: true }),
   }),
   description: schema.maybe(schema.string()),
   hide_title: schema.maybe(schema.boolean()),

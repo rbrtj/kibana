@@ -30,21 +30,23 @@ export const MAX_BREAKDOWN_FIELD_LENGTH = 1000;
 export const MAX_VIS_CONTEXT_ATTRIBUTE_KEY_LENGTH = 256;
 export const MAX_DISCOVER_SESSION_CONTROL_PANELS = 100;
 
-const visContextSchema = z.object({
-  suggestion_type: z
-    .union([
-      z.literal(UnifiedHistogramSuggestionType.lensSuggestion),
-      z.literal(UnifiedHistogramSuggestionType.histogramForESQL),
-      z.literal(UnifiedHistogramSuggestionType.histogramForDataView),
-    ])
-    .meta({
-      description:
-        'Chart suggestion type used by Discover to generate this histogram configuration.',
+const visContextSchema = z
+  .object({
+    suggestion_type: z
+      .union([
+        z.literal(UnifiedHistogramSuggestionType.lensSuggestion),
+        z.literal(UnifiedHistogramSuggestionType.histogramForESQL),
+        z.literal(UnifiedHistogramSuggestionType.histogramForDataView),
+      ])
+      .meta({
+        description:
+          'Chart suggestion type used by Discover to generate this histogram configuration.',
+      }),
+    attributes: z.record(z.string().max(MAX_VIS_CONTEXT_ATTRIBUTE_KEY_LENGTH), z.any()).meta({
+      description: 'Chart configuration payload for the selected `suggestion_type`.',
     }),
-  attributes: z.record(z.string().max(MAX_VIS_CONTEXT_ATTRIBUTE_KEY_LENGTH), z.any()).meta({
-    description: 'Chart configuration payload for the selected `suggestion_type`.',
-  }),
-});
+  })
+  .strict();
 
 const discoverSessionControlWidthSchema = z
   .union([

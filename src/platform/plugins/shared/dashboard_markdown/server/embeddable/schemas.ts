@@ -24,6 +24,7 @@ export const markdownStateSchema = z
         }),
       })
       .strict()
+      .default({ open_links_in_new_tab: true })
       .meta({ description: 'Display settings for the markdown panel.' }),
   })
   .strict();
