@@ -124,7 +124,6 @@ export const panelOverridesSchema = z
     column_order: z
       .array(z.string().meta({ description: 'Field name of a column in display order.' }))
       .max(100)
-      .default([])
       .optional()
       .meta({
         description:
@@ -134,7 +133,7 @@ export const panelOverridesSchema = z
       description:
         'Per-column presentation overrides (e.g. widths) keyed by field name. When set, merges with the source configuration for the referenced session or inline tab.',
     }),
-    sort: z.array(sortSchema).max(100).default([]).optional().meta({
+    sort: z.array(sortSchema).max(100).optional().meta({
       description:
         'Sort configuration (field and direction) for the data table. When set, overrides the referenced saved object or the inline tab config in `tabs`. If omitted, the source configuration is used.',
     }),
@@ -144,7 +143,6 @@ export const panelOverridesSchema = z
         z.literal(DataGridDensity.EXPANDED),
         z.literal(DataGridDensity.NORMAL),
       ])
-      .default(DataGridDensity.COMPACT)
       .optional()
       .meta({
         description:
@@ -152,7 +150,6 @@ export const panelOverridesSchema = z
       }),
     header_row_height: z
       .union([z.number().min(1).max(5), z.literal('auto')])
-      .default(3)
       .optional()
       .meta({
         description:
@@ -160,17 +157,16 @@ export const panelOverridesSchema = z
       }),
     row_height: z
       .union([z.number().min(1).max(20), z.literal('auto')])
-      .default(3)
       .optional()
       .meta({
         description:
           'Data row height: number (1–20) or `auto`. When set, overrides the referenced saved object or the inline tab config in `tabs`. If omitted, falls back to the source or to the advanced setting "discover:rowHeightOption".',
       }),
-    rows_per_page: z.number().min(1).max(10000).default(100).optional().meta({
+    rows_per_page: z.number().min(1).max(10000).optional().meta({
       description:
         'Number of rows per page. When set, overrides the referenced saved object or the inline tab config in `tabs`. If omitted, falls back to the source or to the advanced setting "discover:sampleRowsPerPage".',
     }),
-    sample_size: z.number().min(10).max(10000).default(500).optional().meta({
+    sample_size: z.number().min(10).max(10000).optional().meta({
       description:
         'Number of documents to sample. When set, overrides the referenced saved object or the inline tab config in `tabs`. If omitted, falls back to the source or to the advanced setting "discover:sampleSize".',
     }),
