@@ -27,8 +27,6 @@ export type { DashboardListingTab } from './dashboard_listing/types';
 export { DashboardListingTable } from './dashboard_listing';
 export { DashboardTopNav } from './dashboard_top_nav';
 export type { RedirectToProps } from './dashboard_app/types';
-export { DASHBOARD_PRETTIFY_BUTTON_ID } from './services/dashboard_top_nav_menu_items_service';
-
 export type { FindDashboardsByIdResponse } from './dashboard_client';
 
 export { DASHBOARD_APP_ID } from '../common/page_bundle_constants';

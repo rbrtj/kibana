@@ -10,7 +10,7 @@ import { combineLatest, EMPTY, from, switchMap } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { i18n } from '@kbn/i18n';
 import { ActionButtonType } from '@kbn/agent-builder-browser/attachments';
-import type { ChromeStart } from '@kbn/core/public';
+import type { ApplicationStart, ChromeStart } from '@kbn/core/public';
 import type { DataPublicPluginStart } from '@kbn/data-plugin/public';
 import type { UpdateOriginResponse } from '@kbn/agent-builder-common';
 import {
@@ -23,12 +23,13 @@ import type {
   DashboardRendererProps,
   DashboardStart,
 } from '@kbn/dashboard-plugin/public';
-import { DASHBOARD_PRETTIFY_BUTTON_ID } from '@kbn/dashboard-plugin/public';
 import type { UnifiedSearchPublicPluginStart } from '@kbn/unified-search-plugin/public';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
 import type { DashboardCanvasAttachmentProps } from './async_services';
-
-const PRETTIFY_DASHBOARD_MESSAGE = '/dashboard-management Make this dashboard ✨Pretty✨';
+import {
+  DASHBOARD_PRETTIFY_BUTTON_ID,
+  PRETTIFY_DASHBOARD_MESSAGE,
+} from './prettify_button_constants';
 
 const prettifyDashboardButtonLabel = i18n.translate(
   'xpack.agentBuilderDashboards.dashboardTopNav.prettifyButtonLabel',
@@ -65,6 +66,7 @@ const LazyDashboardCanvasAttachment = React.lazy(async () => {
 
 export const registerDashboardAttachmentUiDefinition = ({
   agentBuilder,
+  application,
   chrome,
   dashboardLocator,
   unifiedSearch,
@@ -73,6 +75,7 @@ export const registerDashboardAttachmentUiDefinition = ({
   canWriteDashboards,
 }: {
   agentBuilder: AgentBuilderPluginStart;
+  application: ApplicationStart;
   chrome: ChromeStart;
   dashboardLocator?: DashboardRendererProps['locator'];
   unifiedSearch: UnifiedSearchPublicPluginStart;
@@ -82,33 +85,39 @@ export const registerDashboardAttachmentUiDefinition = ({
 }): (() => void) => {
   let dashboardApi: DashboardApi | undefined;
   const draftAttachmentId = createIdGenerator();
-  const unregisterPrettifyMenuItem = dashboardPlugin.registerDashboardTopNavMenuItem(
-    (currentDashboardApi) => ({
-      order: 0,
-      label: prettifyDashboardButtonLabel,
-      id: 'prettify',
-      htmlId: DASHBOARD_PRETTIFY_BUTTON_ID,
-      iconType: 'sparkles',
-      testId: DASHBOARD_PRETTIFY_BUTTON_ID,
-      run: () => {
-        agentBuilder.openChat({
-          newConversation: true,
-          initialMessage: PRETTIFY_DASHBOARD_MESSAGE,
-          autoSendInitialMessage: true,
-          attachments: [
-            {
-              id: draftAttachmentId.current,
-              origin: currentDashboardApi.savedObjectId$.getValue(),
-              type: DASHBOARD_ATTACHMENT_TYPE,
-              data: dashboardStateToAttachmentData(
-                currentDashboardApi.getSerializedState().attributes
-              ),
-            },
-          ],
-        });
-      },
-    })
-  );
+  const hasAgentBuilderAccess = application.capabilities.agentBuilder?.show === true;
+
+  let unregisterPrettifyMenuItem = () => {};
+
+  if (hasAgentBuilderAccess) {
+    unregisterPrettifyMenuItem = dashboardPlugin.registerDashboardTopNavMenuItem(
+      (currentDashboardApi) => ({
+        order: 0,
+        label: prettifyDashboardButtonLabel,
+        id: 'prettify',
+        htmlId: DASHBOARD_PRETTIFY_BUTTON_ID,
+        iconType: 'sparkles',
+        testId: DASHBOARD_PRETTIFY_BUTTON_ID,
+        run: () => {
+          agentBuilder.openChat({
+            newConversation: true,
+            initialMessage: PRETTIFY_DASHBOARD_MESSAGE,
+            autoSendInitialMessage: true,
+            attachments: [
+              {
+                id: draftAttachmentId.current,
+                origin: currentDashboardApi.savedObjectId$.getValue(),
+                type: DASHBOARD_ATTACHMENT_TYPE,
+                data: dashboardStateToAttachmentData(
+                  currentDashboardApi.getSerializedState().attributes
+                ),
+              },
+            ],
+          });
+        },
+      })
+    );
+  }
   const findDashboardsServicePromise = dashboardPlugin.findDashboardsService();
   const checkSavedDashboardExist = async (dashboardId: string) => {
     const findDashboardsService = await findDashboardsServicePromise;

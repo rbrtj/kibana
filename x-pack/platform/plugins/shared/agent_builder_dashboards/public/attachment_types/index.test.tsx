@@ -30,9 +30,9 @@ import { ATTACHMENT_REF_OPERATION } from '@kbn/agent-builder-common/attachments'
 import type { VersionedAttachment } from '@kbn/agent-builder-common/attachments';
 import type { ActiveConversation } from '@kbn/agent-builder-browser/events';
 import { registerDashboardAttachmentUiDefinition } from '.';
+import { PRETTIFY_DASHBOARD_MESSAGE } from './prettify_button_constants';
 
 jest.mock('@kbn/dashboard-plugin/public', () => ({
-  DASHBOARD_PRETTIFY_BUTTON_ID: 'dashboardPrettifyButton',
   DashboardRenderer: jest.fn(() => null),
 }));
 
@@ -234,6 +234,12 @@ describe('registerDashboardAttachmentUiDefinition', () => {
       registerDashboardTopNavMenuItem,
     } as unknown as DashboardStart;
 
+    const application = {
+      capabilities: {
+        agentBuilder: { show: true },
+      },
+    };
+
     const data = dataPluginMock.createStartContract();
 
     const unifiedSearch: UnifiedSearchPublicPluginStart = {
@@ -242,6 +248,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
 
     return {
       agentBuilder,
+      application,
       chrome,
       addAttachment: mockAddAttachment,
       canWriteDashboards: true,
@@ -344,6 +351,11 @@ describe('registerDashboardAttachmentUiDefinition', () => {
           },
         },
       } as unknown as AgentBuilderPluginStart,
+      application: {
+        capabilities: {
+          agentBuilder: { show: true },
+        },
+      },
       chrome: {
         sidebar: {
           getCurrentAppId$: () => new BehaviorSubject<string | null>('agentBuilder').asObservable(),
@@ -396,7 +408,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
 
     expect(deps.openChat).toHaveBeenCalledWith({
       newConversation: true,
-      initialMessage: '/dashboard-management Make this dashboard ✨Pretty✨',
+      initialMessage: PRETTIFY_DASHBOARD_MESSAGE,
       autoSendInitialMessage: true,
       attachments: [
         expect.objectContaining({
@@ -410,6 +422,16 @@ describe('registerDashboardAttachmentUiDefinition', () => {
         }),
       ],
     });
+  });
+
+  it('does not register Prettify UI when Agent Builder access is unavailable', () => {
+    unregister();
+    const noAccessDeps = createMockDeps();
+    noAccessDeps.application.capabilities.agentBuilder = { show: false };
+    const cleanup = registerDashboardAttachmentUiDefinition(noAccessDeps);
+
+    expect(noAccessDeps.registerDashboardTopNavMenuItem).not.toHaveBeenCalled();
+    cleanup();
   });
 
   it('unregisters the Prettify header button on cleanup', () => {

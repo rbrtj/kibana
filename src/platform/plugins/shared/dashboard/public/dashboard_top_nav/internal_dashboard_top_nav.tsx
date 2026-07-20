@@ -21,9 +21,8 @@ import {
   EuiLink,
   EuiPopover,
   EuiScreenReaderOnly,
-  euiCanAnimate,
 } from '@elastic/eui';
-import { css, Global, keyframes } from '@emotion/react';
+import { css } from '@emotion/react';
 import type { MountPoint } from '@kbn/core/public';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import type { Query } from '@kbn/es-query';
@@ -58,7 +57,6 @@ import { useDashboardMenuItems } from '../dashboard_app/top_nav/use_dashboard_me
 import type { DashboardEmbedSettings, DashboardRedirect } from '../dashboard_app/types';
 import { openSettingsFlyout } from '../dashboard_renderer/settings/open_settings_flyout';
 import { getDashboardRecentlyAccessedService } from '../services/dashboard_recently_accessed_service';
-import { DASHBOARD_PRETTIFY_BUTTON_ID } from '../services/dashboard_top_nav_menu_items_service';
 import {
   coreServices,
   dataService,
@@ -438,7 +436,6 @@ export function InternalDashboardTopNav({
 
   return (
     <div css={styles.container}>
-      <Global styles={styles.prettifyButton} />
       <EuiScreenReaderOnly>
         <h1
           id="dashboardTitle"
@@ -514,26 +511,6 @@ export function InternalDashboardTopNav({
   );
 }
 
-const prettifyGradient = keyframes`
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-`;
-
-const prettifyGlow = keyframes`
-  from {
-    box-shadow: 0 0 0 1px rgb(255 255 255 / 65%), 0 0 8px rgb(178 0 255 / 55%);
-  }
-  to {
-    box-shadow: 0 0 0 2px rgb(255 255 255 / 85%), 0 0 24px rgb(0 87 255 / 85%);
-  }
-`;
-
-const prettifyShimmer = keyframes`
-  from { transform: translateX(-180%) skewX(-24deg); }
-  to { transform: translateX(420%) skewX(-24deg); }
-`;
-
 const topNavStyles = {
   container: ({ euiTheme }: UseEuiTheme) =>
     css({
@@ -553,93 +530,6 @@ const topNavStyles = {
         paddingTop: 0,
       },
     }),
-  prettifyButton: ({ euiTheme }: UseEuiTheme) => css`
-    #${DASHBOARD_PRETTIFY_BUTTON_ID} {
-      position: relative;
-      isolation: isolate;
-      overflow: hidden;
-      min-inline-size: 120px;
-      margin-inline: ${euiTheme.size.xs};
-      border: 1px solid rgb(255 255 255 / 65%) !important;
-      border-radius: 999px;
-      color: #fff !important;
-      background: linear-gradient(115deg, #d00080, #7625d9, #0057d9, #007878, #d00080) !important;
-      background-size: 400% 400% !important;
-      box-shadow: 0 0 0 1px rgb(255 255 255 / 65%), 0 0 14px rgb(118 37 217 / 65%);
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-shadow: 0 1px 2px rgb(0 0 0 / 45%);
-      text-transform: uppercase;
-
-      &::after {
-        content: '';
-        position: absolute;
-        z-index: 0;
-        inset-block: -50%;
-        inset-inline-start: 0;
-        inline-size: 35%;
-        background: linear-gradient(90deg, transparent, rgb(255 255 255 / 75%), transparent);
-        pointer-events: none;
-      }
-
-      > * {
-        position: relative;
-        z-index: 1;
-      }
-
-      .euiIcon {
-        color: #fff !important;
-        filter: drop-shadow(0 1px 2px rgb(0 0 0 / 50%));
-      }
-
-      &:hover:not(:disabled),
-      &:focus-visible:not(:disabled) {
-        color: #fff !important;
-      }
-
-      &:focus-visible {
-        outline: 3px solid ${euiTheme.colors.text};
-        outline-offset: 2px;
-      }
-
-      ${euiCanAnimate} {
-        animation: ${prettifyGradient} 2.4s ease infinite,
-          ${prettifyGlow} 1.1s ease-in-out infinite alternate;
-        transition: transform ${euiTheme.animation.fast} ease;
-
-        &::after {
-          animation: ${prettifyShimmer} 1.5s linear infinite;
-        }
-
-        &:hover:not(:disabled),
-        &:focus-visible:not(:disabled) {
-          transform: translateY(-1px) scale(1.06);
-        }
-
-        &:active:not(:disabled) {
-          transform: scale(0.98);
-        }
-      }
-
-      @media (forced-colors: active) {
-        border-color: ButtonText !important;
-        color: ButtonText !important;
-        background: ButtonFace !important;
-        box-shadow: none;
-        text-shadow: none;
-        animation: none;
-
-        &::after {
-          display: none;
-        }
-
-        .euiIcon {
-          color: ButtonText !important;
-          filter: none;
-        }
-      }
-    }
-  `,
   updateEditButton: ({ euiTheme }: UseEuiTheme) =>
     css({
       blockSize: '100%',

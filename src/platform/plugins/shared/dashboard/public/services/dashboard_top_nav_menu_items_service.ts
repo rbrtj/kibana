@@ -12,8 +12,6 @@ import type { Observable } from 'rxjs';
 import { BehaviorSubject } from 'rxjs';
 import type { DashboardApi } from '../dashboard_api/types';
 
-export const DASHBOARD_PRETTIFY_BUTTON_ID = 'dashboardPrettifyButton';
-
 export type DashboardTopNavMenuItemFactory = (dashboardApi: DashboardApi) => AppMenuItemType;
 
 class DashboardTopNavMenuItemsService {
