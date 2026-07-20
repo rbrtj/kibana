@@ -19,7 +19,6 @@ export type PanelContentAttempt =
   | {
       type: 'success';
       panelContent: Pick<AttachmentPanel, 'type' | 'config'>;
-      /** Optional short NL summary of config changes from the visualization config generator. */
       changeSummary?: string;
     }
   | {
@@ -27,7 +26,7 @@ export type PanelContentAttempt =
       failure: PanelFailure;
     };
 
-/** Flows that can trigger inline panel resolution. */
+/** Operations that can trigger inline panel resolution. */
 export type InlinePanelOperationType =
   | 'add_section'
   | 'add_panels'

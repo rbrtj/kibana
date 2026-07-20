@@ -27,7 +27,6 @@ export const createGenerateConfigPrompt = ({
   existingConfig?: string;
   additionalChartConfigInstructions?: string;
   additionalContext?: string;
-  /** When true (and an existing config is present), ask for a short change summary alongside the config. */
   includeChangeSummary?: boolean;
 }): BaseMessageLike[] => {
   const chartTypeConfigPromptContent = getChartTypeConfigPromptContent(chartType);

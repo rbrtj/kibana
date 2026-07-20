@@ -25,7 +25,6 @@ export interface BuildLensConfigParams {
   parsedExistingConfig?: VisualizationConfig | null;
   includeTimeRange?: boolean;
   additionalChartConfigInstructions?: string;
-  /** Ask the config generator for a short NL summary of changes vs the existing config. */
   includeChangeSummary?: boolean;
   modelProvider: ModelProvider;
   logger: Logger;

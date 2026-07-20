@@ -21,7 +21,8 @@ export type {
 export { DASHBOARD_API_TYPE } from './dashboard_api/types';
 export type { DashboardRendererProps } from './dashboard_renderer/dashboard_renderer';
 export { LazyDashboardRenderer as DashboardRenderer } from './dashboard_renderer/lazy_dashboard_renderer';
-export type { DashboardStart, DashboardSetup, DashboardTopNavMenuItemFactory } from './plugin';
+export type { DashboardStart, DashboardSetup } from './plugin';
+export type { DashboardTopNavMenuItemFactory } from './services/dashboard_top_nav_menu_items_service';
 export type { DashboardListingTab } from './dashboard_listing/types';
 
 export { DashboardListingTable } from './dashboard_listing';

@@ -18,7 +18,6 @@ export interface GenerateConfigAction {
   type: 'generate_config';
   success: boolean;
   config?: any; // Can be any shape - gets validated in ValidateConfigAction
-  /** Optional short NL summary of config changes vs an existing config. */
   changeSummary?: string;
   attempt: number;
   error?: string;

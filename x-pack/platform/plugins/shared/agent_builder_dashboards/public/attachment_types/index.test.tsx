@@ -30,7 +30,6 @@ import { ATTACHMENT_REF_OPERATION } from '@kbn/agent-builder-common/attachments'
 import type { VersionedAttachment } from '@kbn/agent-builder-common/attachments';
 import type { ActiveConversation } from '@kbn/agent-builder-browser/events';
 import { registerDashboardAttachmentUiDefinition } from '.';
-import { PRETTIFY_DASHBOARD_MESSAGE } from './prettify_button_constants';
 
 jest.mock('@kbn/dashboard-plugin/public', () => ({
   DashboardRenderer: jest.fn(() => null),
@@ -408,7 +407,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
 
     expect(deps.openChat).toHaveBeenCalledWith({
       newConversation: true,
-      initialMessage: PRETTIFY_DASHBOARD_MESSAGE,
+      initialMessage: '/dashboard-management Make this dashboard ✨Pretty✨',
       autoSendInitialMessage: true,
       attachments: [
         expect.objectContaining({

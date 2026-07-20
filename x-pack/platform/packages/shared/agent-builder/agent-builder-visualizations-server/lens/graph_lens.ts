@@ -33,10 +33,6 @@ import { createGenerateConfigPrompt } from './prompts';
 // Regex to extract JSON from markdown code blocks
 const INLINE_JSON_REGEX = /```(?:json)?\s*([\s\S]*?)\s*```/gm;
 
-/**
- * Unwrap `{ config, changeSummary }` when the model was asked for a change summary.
- * Falls back to treating the whole object as the config (backward compatible).
- */
 export const parseGeneratedConfigResponse = (
   parsed: unknown,
   includeChangeSummary: boolean

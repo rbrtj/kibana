@@ -161,7 +161,7 @@ Use operations[] to:
         });
         let dashboardData = operationResult.dashboardData;
         const { failures, contentResolvedPanelIds } = operationResult;
-        const configGeneratorChanges: ConfigGeneratorChange[] = [];
+        let configGeneratorChanges: ConfigGeneratorChange[] = [];
 
         if (prettify) {
           const prettifyResult = await prettifyPanelConfigs({
@@ -172,7 +172,7 @@ Use operations[] to:
           });
           dashboardData = prettifyResult.dashboardData;
           failures.push(...prettifyResult.failures);
-          configGeneratorChanges.push(...prettifyResult.configGeneratorChanges);
+          configGeneratorChanges = prettifyResult.configGeneratorChanges;
         }
 
         // Data-aware default time range computation

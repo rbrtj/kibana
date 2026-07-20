@@ -26,10 +26,9 @@ import type {
 import type { UnifiedSearchPublicPluginStart } from '@kbn/unified-search-plugin/public';
 import type { AgentBuilderPluginStart } from '@kbn/agent-builder-browser';
 import type { DashboardCanvasAttachmentProps } from './async_services';
-import {
-  DASHBOARD_PRETTIFY_BUTTON_ID,
-  PRETTIFY_DASHBOARD_MESSAGE,
-} from './prettify_button_constants';
+
+const DASHBOARD_PRETTIFY_BUTTON_ID = 'dashboardPrettifyButton';
+const PRETTIFY_DASHBOARD_MESSAGE = '/dashboard-management Make this dashboard ✨Pretty✨';
 
 const prettifyDashboardButtonLabel = i18n.translate(
   'xpack.agentBuilderDashboards.dashboardTopNav.prettifyButtonLabel',

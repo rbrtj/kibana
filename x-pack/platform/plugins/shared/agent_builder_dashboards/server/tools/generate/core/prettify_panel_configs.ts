@@ -15,7 +15,6 @@ import { indexPanelsById, updatePanelInDashboard } from './dashboard_state';
 import { DASHBOARD_OPERATION_FAILURE_TYPES } from './failure_types';
 import type { ResolvePanelContent } from './operations/panels';
 import { getEsqlQueries } from './panel_config';
-import type { PanelContentAttempt } from './resolve_panel';
 import type { PanelFailure } from './utils';
 
 const prettifyNlQuery =
@@ -31,11 +30,6 @@ const getChartType = (panel: AttachmentPanel): SupportedChartType | undefined =>
     : undefined;
 };
 
-const getPanelTitle = (panel: AttachmentPanel): string | undefined => {
-  const { title } = panel.config;
-  return typeof title === 'string' ? title : undefined;
-};
-
 export interface ConfigGeneratorChange {
   panelId: string;
   title?: string;
@@ -47,11 +41,6 @@ interface PrettifyRequest {
   panel: AttachmentPanel;
   chartType: SupportedChartType;
   esql: string;
-}
-
-interface PrettifyAttempt {
-  panelId: string;
-  attempt: PanelContentAttempt;
 }
 
 const toPrettifyRequest = (
@@ -84,7 +73,6 @@ export const prettifyPanelConfigs = async ({
   dashboardData: DashboardAttachmentData;
   existingPanels: readonly AttachmentPanel[];
   resolvePanelContent: ResolvePanelContent;
-  /** Panels already content-resolved earlier in this generate call (e.g. via edit_panels). */
   skipPanelIds?: ReadonlySet<string>;
 }): Promise<{
   dashboardData: DashboardAttachmentData;
@@ -106,7 +94,6 @@ export const prettifyPanelConfigs = async ({
       continue;
     }
 
-    // Non-ES|QL / unsupported / multi-query panels are expected skips, not failures.
     const request = toPrettifyRequest(existingPanel.id, currentPanel);
     if (!request) {
       continue;
@@ -115,7 +102,7 @@ export const prettifyPanelConfigs = async ({
     requests.push(request);
   }
 
-  const attempts: PrettifyAttempt[] = await Promise.all(
+  const attempts = await Promise.all(
     requests.map(async ({ panelId, panel, chartType, esql }) => ({
       panelId,
       attempt: await resolvePanelContent({
@@ -146,10 +133,10 @@ export const prettifyPanelConfigs = async ({
     nextDashboardData = updateResult.dashboardData;
 
     if (attempt.changeSummary) {
-      const updatedPanel = indexPanelsById(nextDashboardData.panels).get(panelId);
+      const { title } = attempt.panelContent.config;
       configGeneratorChanges.push({
         panelId,
-        title: updatedPanel ? getPanelTitle(updatedPanel) : undefined,
+        title: typeof title === 'string' ? title : undefined,
         changeSummary: attempt.changeSummary,
       });
     }

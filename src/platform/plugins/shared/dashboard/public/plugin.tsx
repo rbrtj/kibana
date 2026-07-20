@@ -399,5 +399,3 @@ export class DashboardPlugin
     dashboardTopNavMenuItemsService.clear();
   }
 }
-
-export type { DashboardTopNavMenuItemFactory } from './services/dashboard_top_nav_menu_items_service';
