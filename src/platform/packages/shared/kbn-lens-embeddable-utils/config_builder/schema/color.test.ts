@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { freeze, produce } from 'immer';
+import { freeze, produce } from 'immer-v9';
 
 import { expectPrettyError } from '@kbn/zod-helpers/v4';
 import type {
