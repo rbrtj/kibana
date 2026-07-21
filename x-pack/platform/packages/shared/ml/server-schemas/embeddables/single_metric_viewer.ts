@@ -38,7 +38,7 @@ export const singleMetricViewerEmbeddableStateSchema = z
       description: 'Identifier of a forecast to overlay on the chart.',
     }),
   })
-  .strict()
+  .strip()
   .meta({
     id: 'ml_single_metric_viewer',
     description: 'Single Metric Viewer embeddable',

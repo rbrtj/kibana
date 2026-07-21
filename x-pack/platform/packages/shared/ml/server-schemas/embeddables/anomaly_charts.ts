@@ -60,7 +60,7 @@ export const anomalyChartsEmbeddableStateSchema = z
       description: 'Severity threshold ranges used to filter anomaly results.',
     }),
   })
-  .strict()
+  .strip()
   .meta({
     id: 'ml_anomaly_charts',
     description: 'Anomaly Charts embeddable',

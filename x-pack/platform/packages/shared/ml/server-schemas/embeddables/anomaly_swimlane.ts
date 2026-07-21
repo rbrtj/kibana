@@ -29,7 +29,7 @@ const anomalySwimLaneOverallSchema = z
     ...baseProps,
     swimlane_type: z.literal('overall'),
   })
-  .strict();
+  .strip();
 
 const anomalySwimLaneViewBySchema = z
   .object({
@@ -39,7 +39,7 @@ const anomalySwimLaneViewBySchema = z
       description: 'Field name used to split anomalies into a view-by swim lane.',
     }),
   })
-  .strict();
+  .strip();
 
 export const anomalySwimLaneEmbeddableStateSchema = z
   .union([anomalySwimLaneOverallSchema, anomalySwimLaneViewBySchema])

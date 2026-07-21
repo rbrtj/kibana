@@ -160,7 +160,7 @@ apiTest.describe('dashboards - upsert', { tag: tags.deploymentAgnostic }, () => 
 
       expect(response).toHaveStatusCode(400);
       expect(response.body.message).toBe(
-        'ID must contain only lowercase letters, numbers, hyphens, and underscores.'
+        '✖ ID must contain only lowercase letters, numbers, hyphens, and underscores.'
       );
     }
   );
