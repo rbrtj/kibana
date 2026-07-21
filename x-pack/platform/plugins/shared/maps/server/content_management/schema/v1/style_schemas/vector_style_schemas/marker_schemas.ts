@@ -31,7 +31,8 @@ export const symbolizeAsSchema = z
           .union([z.literal(SYMBOLIZE_AS_TYPES.CIRCLE), z.literal(SYMBOLIZE_AS_TYPES.ICON)])
           .optional(),
       })
-      .strict(),
+      .strict()
+      .default({}), // need default to match config-schema behavior
   })
   .strict()
   .default({

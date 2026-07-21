@@ -50,7 +50,7 @@ export const vectorStylePropertiesSchema = z
 
 export const vectorStyleSchema = z
   .object({
-    properties: vectorStylePropertiesSchema,
+    properties: vectorStylePropertiesSchema.default({}), // need default to match config-schema behavior
     isTimeAware: z.boolean().default(true).optional().meta({
       description:
         'Set to true to apply global time to style metadata requests. When set to true, style metadata will be re-fetched when global time changes.',

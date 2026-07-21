@@ -109,7 +109,7 @@ export const labelSchema = z
     z
       .object({
         type: z.literal(STYLE_TYPE.DYNAMIC),
-        options: labelDynamicOptions,
+        options: labelDynamicOptions.default({}), // need default to match config-schema behavior
       })
       .strict(),
   ])
