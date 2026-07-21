@@ -57,7 +57,10 @@ export function registerSearchRoute(
       },
       validate: {
         request: {
-          query: z.union([asCodeSearchRequestSchema, legacySearchRequestParamsSchema]),
+          // Must be an object for OAS generation, validated by the handler
+          // see src/platform/packages/shared/kbn-router-to-openapispec/src/oas_converter/zod/lib.ts
+          // TODO: migrate to use only asCodeSearchRequestSchema
+          query: z.object({}).loose(),
         },
         response: {
           400: {
