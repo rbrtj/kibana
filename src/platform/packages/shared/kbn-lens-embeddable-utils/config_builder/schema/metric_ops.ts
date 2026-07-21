@@ -248,10 +248,8 @@ export const cumulativeSumOperationSchema = metricOperationSharedSchema
       .string()
       .optional()
       .meta({
-        meta: {
-          description:
-            'Field to cumulatively sum. When omitted, cumulative sum is applied to the count of records.',
-        },
+        description:
+          'Field to cumulatively sum. When omitted, cumulative sum is applied to the count of records.',
       }),
   })
   .meta({ id: 'cumulativeSumOperation', title: METRIC_OP_TITLES.cumulativeSum });

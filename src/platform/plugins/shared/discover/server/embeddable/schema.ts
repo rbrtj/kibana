@@ -233,7 +233,7 @@ const discoverSessionByValuePropsSchema = z
   .strict();
 const getDiscoverSessionByValueEmbeddableSchema = withPanelSchemas(
   discoverSessionByValuePropsSchema,
-  { meta: BY_VALUE_SCHEMA_META }
+  BY_VALUE_SCHEMA_META
 );
 
 const discoverSessionByReferencePropsSchema = z
@@ -248,7 +248,7 @@ const discoverSessionByReferencePropsSchema = z
   .strict();
 const getDiscoverSessionByReferenceEmbeddableSchema = withPanelSchemas(
   discoverSessionByReferencePropsSchema,
-  { meta: BY_REF_SCHEMA_META }
+  BY_REF_SCHEMA_META
 );
 
 export const getDiscoverSessionEmbeddableSchema = (
