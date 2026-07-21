@@ -9,17 +9,38 @@
 
 import { z } from '@kbn/zod';
 import { savedDataViewSpecSchema } from '@kbn/as-code-data-views-schema';
-import { asCodeMetaSchema } from '@kbn/as-code-shared-schemas';
+import {
+  asCodeMetaSchema,
+  asCodePaginationResponseMetaSchema,
+  PAGINATION_MAX_SIZE,
+} from '@kbn/as-code-shared-schemas';
+
+const dataViewsMetaSchema = asCodeMetaSchema.extend({
+  namespaces: z.array(z.string().max(1000)).max(100).optional(),
+});
 
 export const asCodeResponseSchema = z
   .object({
     id: z.string().max(1000),
     data: savedDataViewSpecSchema,
-    meta: asCodeMetaSchema.extend({
-      namespaces: z.array(z.string().max(1000)).max(100).optional(),
-    }),
+    meta: dataViewsMetaSchema,
   })
   .strict();
+
+export const asCodeMinimalResponseSchema = z.object({
+  id: z.string().max(1000),
+  data: z.object({
+    name: savedDataViewSpecSchema.shape.name,
+    index_pattern: savedDataViewSpecSchema.shape.index_pattern,
+    time_field: savedDataViewSpecSchema.shape.time_field,
+  }),
+  meta: dataViewsMetaSchema,
+});
+
+export const asCodePaginatedResponseSchema = z.object({
+  data: z.array(asCodeMinimalResponseSchema).max(PAGINATION_MAX_SIZE),
+  meta: asCodePaginationResponseMetaSchema,
+});
 
 export const savedDataViewSpecSchemaWithoutId = savedDataViewSpecSchema.extend({
   id: z.never(),

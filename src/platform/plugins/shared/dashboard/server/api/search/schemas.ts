@@ -43,6 +43,22 @@ export const legacySearchRequestParamsSchema = z
         description:
           'A tag ID to exclude. Accepts a single tag ID or multiple tag IDs. When multiple are specified, dashboards matching any of the tag IDs are excluded.',
       }),
+    tag_names: z
+      .union([z.string(), z.array(z.string()).max(100)])
+      .optional()
+      .meta({
+        availability: { stability: 'stable', since: '9.6.0' },
+        description:
+          'A tag name to include. Accepts a single tag name or multiple tag names. When multiple are specified, dashboards matching any of the tag names are included. If the same name is shared by multiple tags, dashboards matching any of those tags are included.',
+      }),
+    excluded_tag_names: z
+      .union([z.string(), z.array(z.string()).max(100)])
+      .optional()
+      .meta({
+        availability: { stability: 'stable', since: '9.6.0' },
+        description:
+          'A tag name to exclude. Accepts a single tag name or multiple tag names. When multiple are specified, dashboards matching any of the tag names are excluded. If the same name is shared by multiple tags, dashboards matching any of those tags are excluded.',
+      }),
   })
   .strict();
 

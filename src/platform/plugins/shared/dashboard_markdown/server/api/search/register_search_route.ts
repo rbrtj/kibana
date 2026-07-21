@@ -41,7 +41,7 @@ export function registerSearchRoute(
       },
       validate: {
         request: {
-          query: asCodeSearchRequestSchema.omit({ tags: true, excluded_tags: true }),
+          query: asCodeSearchRequestSchema.pick({ page: true, per_page: true, query: true }),
         },
         response: {
           200: {
