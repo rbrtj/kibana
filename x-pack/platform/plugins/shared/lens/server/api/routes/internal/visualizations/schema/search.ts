@@ -19,10 +19,10 @@ export const lensSearchRequestQuerySchema = lensCMSearchOptionsSchema
     query: z.string().optional().meta({
       description: 'The text to search for visualizations',
     }),
-    page: z.coerce.number().min(1).default(1).meta({
+    page: z.coerce.number().min(1).optional().default(1).meta({
       description: 'Specifies the current page number of the paginated result.',
     }),
-    perPage: z.coerce.number().min(1).max(1000).default(20).meta({
+    perPage: z.coerce.number().min(1).max(1000).optional().default(20).meta({
       description: 'Maximum number of visualizations included in a single response',
     }),
   })

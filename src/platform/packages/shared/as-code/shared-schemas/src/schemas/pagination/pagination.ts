@@ -12,13 +12,14 @@ import { PAGINATION_DEFAULT_PER_PAGE, PAGINATION_MAX_SIZE } from '../../constant
 
 export const asCodePaginationParamsSchema = z
   .object({
-    page: z.coerce.number().min(1).default(1).meta({
+    page: z.coerce.number().min(1).optional().default(1).meta({
       description: 'The page of results to return.',
     }),
     per_page: z.coerce
       .number()
       .min(1)
       .max(PAGINATION_MAX_SIZE)
+      .optional()
       .default(PAGINATION_DEFAULT_PER_PAGE)
       .meta({
         description: 'The number of results to return per page.',
