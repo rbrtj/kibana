@@ -39,5 +39,8 @@ describe('registerSkills', () => {
     expect(dashboardManagementSkill.content).toContain(
       "Choose 'mosaic' when visualizing the joint distribution of two categorical dimensions"
     );
+    expect(dashboardManagementSkill.content).toContain(
+      'provide a new `chartType` when the request changes the chart family'
+    );
   });
 });

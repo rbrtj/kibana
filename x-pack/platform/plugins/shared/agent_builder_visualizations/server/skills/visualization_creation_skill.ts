@@ -137,7 +137,7 @@ Supported values for \`chartType\`: ${Object.values(SupportedChartType).join(', 
 
 ${chartTypeSelectionContent}
 
-For every new Lens visualization, choose and pass \`chartType\`; it is required. For a new Vega visualization, \`chartType\` is an optional authoring hint — omit it when no Lens chart type represents the requested visualization. On updates, \`chartType\` is optional because the existing visualization provides the current form.
+For every new Lens visualization, choose and pass \`chartType\`; it is required. For a new Vega visualization, \`chartType\` is an optional authoring hint — omit it when no Lens chart type represents the requested visualization. On updates, \`chartType\` is optional because the existing visualization provides the current form. When editing a Lens visualization, omit \`chartType\` to preserve its current chart family; provide a new \`chartType\` when the request changes the chart family, such as from \`xy\` to \`pie\`.
 
 ## Edge Cases
 
@@ -179,8 +179,7 @@ For every new Lens visualization, choose and pass \`chartType\`; it is required.
 {
   "attachment_id": "viz-attachment-123",
   "query": "Update this chart to show 95th percentile response bytes over time",
-  "index": "logs-nginx.access-default",
-  "chartType": "xy"
+  "index": "logs-nginx.access-default"
 }
 \`\`\`
 `,
