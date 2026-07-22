@@ -22,14 +22,14 @@ const mlEntityFieldOperationSchema = z.union([
 export const influencerSchema = z
   .object({
     fieldName: z.string().max(10000),
-    fieldValue: z.any().optional(),
+    fieldValue: z.any(),
   })
   .strict();
 
 export const criteriaFieldSchema = z
   .object({
     fieldName: z.string().max(10000),
-    fieldValue: z.any().optional(),
+    fieldValue: z.any(),
     fieldType: mlEntityFieldTypeSchema.optional(),
   })
   .strict();

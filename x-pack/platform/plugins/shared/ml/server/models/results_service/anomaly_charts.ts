@@ -1717,7 +1717,7 @@ export function anomalyChartsDataProvider(mlClient: MlClient, client: IScopedClu
     try {
       return await getRecordsForCriteria(
         [config.jobId],
-        criteria,
+        criteria as CriteriaField[],
         0,
         range.min,
         range.max,
