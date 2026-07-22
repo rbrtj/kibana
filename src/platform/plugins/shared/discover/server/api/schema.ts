@@ -8,7 +8,13 @@
  */
 
 import { z } from '@kbn/zod';
-import { asCodeIdSchema, asCodeMetaSchema } from '@kbn/as-code-shared-schemas';
+import {
+  asCodeIdSchema,
+  asCodeMetaSchema,
+  asCodePaginationParamsSchema,
+  asCodePaginationResponseMetaSchema,
+  PAGINATION_MAX_SIZE,
+} from '@kbn/as-code-shared-schemas';
 import { optionsListESQLControlSchema } from '@kbn/controls-schemas';
 import {
   CONTROL_WIDTH_LARGE,
@@ -29,6 +35,7 @@ export const MAX_TAB_LABEL_LENGTH = 120;
 export const MAX_BREAKDOWN_FIELD_LENGTH = 1000;
 export const MAX_VIS_CONTEXT_ATTRIBUTE_KEY_LENGTH = 256;
 export const MAX_DISCOVER_SESSION_CONTROL_PANELS = 100;
+export const MAX_SEARCH_QUERY_LENGTH = 1000;
 
 const visContextSchema = z
   .object({
@@ -202,13 +209,46 @@ export const discoverSessionApiDataSchema = z
   });
 
 export const discoverSessionApiResponseSchema = z.object({
-  id: asCodeIdSchema,
+  id: z.string().meta({ description: 'The Discover session ID.' }),
   data: discoverSessionApiDataSchema,
   meta: asCodeMetaSchema,
 });
 
+export const discoverSessionSearchParamsSchema = asCodePaginationParamsSchema.extend({
+  query: z
+    .string()
+    .max(MAX_SEARCH_QUERY_LENGTH)
+    .meta({
+      description:
+        'Full-text search (`simple_query_string`) over `title` and `description`. All terms must match.',
+    })
+    .optional(),
+});
+
+const discoverSessionSearchItemSchema = z.object({
+  id: z.string().meta({ description: 'The Discover session ID.' }),
+  data: z.object({
+    title: z.string().meta({ description: 'Discover session title.' }),
+    description: z.string().optional().meta({ description: 'Discover session description.' }),
+  }),
+  meta: asCodeMetaSchema,
+});
+
+export const discoverSessionSearchResponseSchema = z.object({
+  data: z
+    .array(discoverSessionSearchItemSchema)
+    // Mirror the request's production-enforced `per_page` maximum in OAS and dev response validation.
+    .max(PAGINATION_MAX_SIZE)
+    .meta({
+      description: 'List of matching Discover sessions (summaries, not the full session state).',
+    }),
+  meta: asCodePaginationResponseMetaSchema,
+});
+
 export type DiscoverSessionApiData = z.output<typeof discoverSessionApiDataSchema>;
 export type DiscoverSessionApiResponse = z.output<typeof discoverSessionApiResponseSchema>;
+export type DiscoverSessionSearchParams = z.output<typeof discoverSessionSearchParamsSchema>;
+export type DiscoverSessionSearchResponse = z.output<typeof discoverSessionSearchResponseSchema>;
 export type DiscoverSessionApiClassicTab = z.output<typeof discoverSessionClassicTabSchema>;
 export type DiscoverSessionApiEsqlTab = z.output<typeof discoverSessionEsqlTabSchema>;
 export type DiscoverSessionApiTab = z.output<typeof discoverSessionApiTabSchema>;
