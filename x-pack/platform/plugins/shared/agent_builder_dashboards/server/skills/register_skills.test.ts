@@ -31,4 +31,13 @@ describe('registerSkills', () => {
     expect(dashboardManagementSkill.content).toContain('Dashboard Composition Guidelines');
     expect(dashboardManagementSkill.content).toContain('Grid Packing Rules');
   });
+
+  it('includes the shared chart type selection guidance', () => {
+    expect(dashboardManagementSkill.content).toContain('Chart Type Guidance');
+    expect(dashboardManagementSkill.content).toContain('Available chart types:');
+    expect(dashboardManagementSkill.content).toContain('- region_map:');
+    expect(dashboardManagementSkill.content).toContain(
+      "Choose 'mosaic' when visualizing the joint distribution of two categorical dimensions"
+    );
+  });
 });
