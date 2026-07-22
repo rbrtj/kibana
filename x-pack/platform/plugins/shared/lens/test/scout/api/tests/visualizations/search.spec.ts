@@ -59,6 +59,6 @@ apiTest.describe('lens visualizations - search', { tag: tags.deploymentAgnostic 
     });
 
     expect(response).toHaveStatusCode(400);
-    expect(response.body.message).toContain('xyz');
+    expect(response.body.message).toMatch(/unrecognized.*xyz|xyz.*unrecognized/i);
   });
 });

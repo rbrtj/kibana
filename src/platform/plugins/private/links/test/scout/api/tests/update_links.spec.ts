@@ -140,7 +140,9 @@ apiTest.describe('links - update', { tag: tags.deploymentAgnostic }, () => {
       });
 
       expect(response).toHaveStatusCode(400);
-      expect(response.body.message).toContain('layout');
+      expect(response.body.message).toMatch(
+        /layout.*horizontal|layout.*vertical|horizontal|vertical/i
+      );
     }
   );
 

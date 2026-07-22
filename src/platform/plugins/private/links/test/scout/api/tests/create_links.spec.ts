@@ -117,7 +117,7 @@ apiTest.describe('links - create', { tag: tags.deploymentAgnostic }, () => {
     });
 
     expect(response).toHaveStatusCode(400);
-    expect(response.body.message).toContain('links');
+    expect(response.body.message).toMatch(/links.*array|array.*links/i);
   });
 
   apiTest('validation - returns 400 when a link has an invalid type', async ({ apiClient }) => {
@@ -134,7 +134,7 @@ apiTest.describe('links - create', { tag: tags.deploymentAgnostic }, () => {
     });
 
     expect(response).toHaveStatusCode(400);
-    expect(response.body.message).toContain('links');
+    expect(response.body.message).toMatch(/dashboardLink|externalLink/i);
   });
 
   apiTest('validation - returns 400 when layout has an invalid value', async ({ apiClient }) => {
@@ -151,7 +151,9 @@ apiTest.describe('links - create', { tag: tags.deploymentAgnostic }, () => {
     });
 
     expect(response).toHaveStatusCode(400);
-    expect(response.body.message).toContain('layout');
+    expect(response.body.message).toMatch(
+      /layout.*horizontal|layout.*vertical|horizontal|vertical/i
+    );
   });
 
   apiTest(
