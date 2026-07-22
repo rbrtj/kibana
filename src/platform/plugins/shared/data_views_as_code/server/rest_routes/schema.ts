@@ -29,10 +29,10 @@ export const asCodeResponseSchema = z
 
 export const asCodeMinimalResponseSchema = z.object({
   id: z.string().max(1000),
-  data: z.object({
-    name: savedDataViewSpecSchema.shape.name,
-    index_pattern: savedDataViewSpecSchema.shape.index_pattern,
-    time_field: savedDataViewSpecSchema.shape.time_field,
+  data: savedDataViewSpecSchema.pick({
+    name: true,
+    index_pattern: true,
+    time_field: true,
   }),
   meta: dataViewsMetaSchema,
 });
@@ -42,6 +42,4 @@ export const asCodePaginatedResponseSchema = z.object({
   meta: asCodePaginationResponseMetaSchema,
 });
 
-export const savedDataViewSpecSchemaWithoutId = savedDataViewSpecSchema.extend({
-  id: z.never(),
-});
+export const savedDataViewSpecSchemaWithoutId = savedDataViewSpecSchema.omit({ id: true });
