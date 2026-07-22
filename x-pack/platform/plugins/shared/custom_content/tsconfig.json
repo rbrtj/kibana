@@ -14,7 +14,8 @@
     "@kbn/inference-common",
     "@kbn/inference-plugin",
     "@kbn/ui-theme",
-    "@kbn/logging"
+    "@kbn/logging",
+    "@kbn/zod"
   ],
   "exclude": ["target/**/*"]
 }

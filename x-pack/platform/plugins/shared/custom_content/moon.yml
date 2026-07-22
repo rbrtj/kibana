@@ -27,6 +27,7 @@ dependsOn:
   - '@kbn/inference-plugin'
   - '@kbn/ui-theme'
   - '@kbn/logging'
+  - '@kbn/zod'
 tags:
   - plugin
   - prod
