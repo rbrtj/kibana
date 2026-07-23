@@ -117,7 +117,7 @@ apiTest.describe('GET /api/discover_sessions/{id}', { tag: tags.deploymentAgnost
   });
 
   apiTest(
-    'returns 400 when the stored Discover session fails response validation',
+    'returns 500 when the output transform fails to validate the stored Discover session',
     async ({ apiClient, kbnClient }) => {
       const { attributes, references } =
         await kbnClient.savedObjects.get<DiscoverSessionAttributes>({
@@ -161,7 +161,7 @@ apiTest.describe('GET /api/discover_sessions/{id}', { tag: tags.deploymentAgnost
         }
       );
 
-      expect(response).toHaveStatusCode(400);
+      expect(response).toHaveStatusCode(500);
     }
   );
 });
