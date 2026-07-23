@@ -72,22 +72,23 @@ const sectionIdField = z
   );
 
 /** A single panel item accepted by `add_panels` (any panel type, optionally targeting a section). */
-export const addPanelsItemSchema = z.union([
+export const addPanelsItemSchema = z.discriminatedUnion('source', [
   z.discriminatedUnion('type', [
     visPanelConfigInputSchema.extend({ sectionId: sectionIdField }),
     markdownPanelConfigInputSchema.extend({ sectionId: sectionIdField }),
   ]),
-  lensPanelRequestSchema.extend({ sectionId: sectionIdField }),
-  vegaPanelRequestSchema.extend({ sectionId: sectionIdField }),
+  z.discriminatedUnion('renderer', [
+    lensPanelRequestSchema.extend({ sectionId: sectionIdField }),
+    vegaPanelRequestSchema.extend({ sectionId: sectionIdField }),
+  ]),
 ]);
 
 export type AddPanelsItemInput = z.infer<typeof addPanelsItemSchema>;
 
 /** A single inline panel item accepted by `add_section` (section-relative, no sectionId). */
-export const addSectionPanelItemSchema = z.union([
+export const addSectionPanelItemSchema = z.discriminatedUnion('source', [
   configPanelInputSchema,
-  lensPanelRequestSchema,
-  vegaPanelRequestSchema,
+  z.discriminatedUnion('renderer', [lensPanelRequestSchema, vegaPanelRequestSchema]),
 ]);
 
 /**
