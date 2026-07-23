@@ -29,3 +29,12 @@ export const fieldSettingsFieldNameSchema = z.string().min(1).meta({
   description:
     'Field name this entry applies to. Use a field from the backing indices for display overrides, or the runtime field name when the entry defines a runtime field. Example: "user.name".',
 });
+
+export const allowHiddenIndicesSchema = schema.maybe(
+  schema.boolean({
+    meta: {
+      title: 'Allow hidden and system indices',
+      description: 'When `true`, allows the data view to match hidden indices.',
+    },
+  })
+);

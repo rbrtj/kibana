@@ -8,7 +8,12 @@
  */
 
 import { z } from '@kbn/zod';
-import { fieldSettingsFieldNameSchema, indexPatternSchema, timeFieldSchema } from './common';
+import {
+  allowHiddenIndicesSchema,
+  fieldSettingsFieldNameSchema,
+  indexPatternSchema,
+  timeFieldSchema,
+} from './common';
 import {
   savedCompositeRuntimeFieldSchema,
   savedPrimitiveRuntimeFieldSchema,
@@ -39,10 +44,7 @@ export const savedDataViewSpecSchema = z
       title: 'Data view name',
       description: 'The name of the data view. Example: "Sample data view".',
     }),
-    allow_hidden_indices: z.boolean().optional().meta({
-      title: 'Allow hidden and system indices',
-      description: 'When `true`, allows the data view to match hidden indices.',
-    }),
+    allow_hidden_indices: allowHiddenIndicesSchema,
     field_filters: z.array(z.string().min(1).max(1000)).max(10_000).optional().meta({
       title: 'Field filters',
       description:
