@@ -39,7 +39,7 @@ export interface VisPanelResolutionRequest extends PanelResolutionRequestBase {
   nlQuery: string;
   /** Index, alias, or datastream to target; discovered when omitted. */
   index?: string;
-  /** Preferred chart type; the LLM suggests one when omitted. */
+  /** Chart type. Required for Lens. */
   chartType?: SupportedChartType;
   /** ES|QL query to back the visualization; generated when omitted. */
   esql?: string;
