@@ -9,6 +9,7 @@ import type { DashboardAttachmentData } from '@kbn/agent-builder-dashboards-comm
 import type { Logger } from '@kbn/core/server';
 import type { ResolvePanelContent } from './operations/panels';
 import type { PanelFailure } from './utils';
+import type { PanelSummary } from './resolve_panel';
 import {
   dashboardOperationSchema,
   executeOperationHandler,
@@ -41,6 +42,7 @@ export const executeDashboardOperations = async ({
 }: ExecuteDashboardOperationsParams): Promise<{
   dashboardData: DashboardAttachmentData;
   failures: PanelFailure[];
+  panelSummaries: PanelSummary[];
 }> => {
   let nextDashboardData = structuredClone(
     dashboardData ?? {
@@ -50,12 +52,14 @@ export const executeDashboardOperations = async ({
     }
   );
   const failures: PanelFailure[] = [];
+  const panelSummaries: PanelSummary[] = [];
 
   const context = await prepareOperationExecution({
     operations,
     logger,
     resolvePanelContent,
     failures,
+    panelSummaries,
   });
 
   for (const [operationIndex, operation] of operations.entries()) {
@@ -70,5 +74,6 @@ export const executeDashboardOperations = async ({
   return {
     dashboardData: nextDashboardData,
     failures,
+    panelSummaries,
   };
 };

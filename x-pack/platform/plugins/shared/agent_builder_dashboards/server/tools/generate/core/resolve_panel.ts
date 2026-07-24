@@ -19,6 +19,7 @@ export type PanelContentAttempt =
   | {
       type: 'success';
       panelContent: Pick<AttachmentPanel, 'type' | 'config'>;
+      summary?: string;
     }
   | {
       type: 'failure';
@@ -27,6 +28,11 @@ export type PanelContentAttempt =
 
 /** Operations that can trigger inline panel resolution. */
 export type InlinePanelOperationType = 'add_section' | 'add_panels' | 'edit_panels';
+
+export interface PanelSummary {
+  panelId: string;
+  summary: string;
+}
 
 /**
  * Fields common to every panel resolution request, independent of panel type.

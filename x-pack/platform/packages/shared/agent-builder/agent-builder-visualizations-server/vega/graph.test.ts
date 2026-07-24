@@ -35,7 +35,14 @@ const mockedExecuteEsql = jest.mocked(executeEsql);
 const createMockLogger = (): Logger =>
   ({ debug: jest.fn(), error: jest.fn(), info: jest.fn(), warn: jest.fn() } as unknown as Logger);
 
-const asCodeBlock = (spec: object) => '```json\n' + JSON.stringify(spec) + '\n```';
+const DEFAULT_SUMMARY = 'Created a Vega chart using the requested data.';
+const asCodeBlock = (value: Record<string, unknown>) => {
+  const response =
+    'title' in value || 'summary' in value
+      ? { summary: DEFAULT_SUMMARY, ...value }
+      : { summary: DEFAULT_SUMMARY, spec: value };
+  return '```json\n' + JSON.stringify(response) + '\n```';
+};
 
 const GENERATED_ESQL = 'FROM logs-* | STATS count = COUNT() BY status';
 const PROVIDED_ESQL = 'FROM metrics-* | STATS avg = AVG(value) BY host';
@@ -96,9 +103,11 @@ describe('createVegaGraph', () => {
   };
 
   it('generates ES|QL then authors and normalizes a spec', async () => {
+    const summary = 'Created a bar chart of counts by status with a concise title.';
     invoke.mockResolvedValue(
       asCodeBlock({
         title: 'Counts by status',
+        summary,
         spec: { mark: 'bar', encoding: { x: { field: 'status' } } },
       })
     );
@@ -108,6 +117,7 @@ describe('createVegaGraph', () => {
     expect(mockedGenerateEsql).toHaveBeenCalledTimes(1);
     expect(state.error).toBeNull();
     expect(state.title).toBe('Counts by status');
+    expect(state.summary).toBe(summary);
     const spec = JSON.parse(state.spec!);
     expect(spec.$schema).toBe(VEGA_LITE_SCHEMA);
     expect(spec.data).toEqual({
@@ -115,6 +125,16 @@ describe('createVegaGraph', () => {
     });
     expect(spec.mark).toBe('bar');
     expect(state.esqlQuery).toBe(GENERATED_ESQL);
+  });
+
+  it('accepts a valid spec when the authoring summary is missing', async () => {
+    invoke.mockResolvedValue('```json\n' + JSON.stringify({ spec: { mark: 'bar' } }) + '\n```');
+
+    const state = await run({ esqlQuery: PROVIDED_ESQL });
+
+    expect(state.error).toBeNull();
+    expect(JSON.parse(state.spec!).mark).toBe('bar');
+    expect(state.summary).toBeNull();
   });
 
   it('keeps panel title out of a faceted Vega-Lite nested spec', async () => {

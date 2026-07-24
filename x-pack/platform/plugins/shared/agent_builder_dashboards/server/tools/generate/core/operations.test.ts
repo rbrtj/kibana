@@ -86,10 +86,12 @@ describe('executeDashboardOperations', () => {
   });
 
   const createResolvedPanelContent = (
-    panelContent: Pick<AttachmentPanel, 'type' | 'config'>
+    panelContent: Pick<AttachmentPanel, 'type' | 'config'>,
+    summary = 'Created a visualization using the requested data.'
   ): PanelContentAttempt => ({
     type: 'success',
     panelContent,
+    summary,
   });
 
   const createResolvePanelContent = (
@@ -292,10 +294,13 @@ describe('executeDashboardOperations', () => {
       ],
       logger,
       resolvePanelContent: createResolvePanelContent({
-        'show total requests': createResolvedPanelContent({
-          type: LENS_EMBEDDABLE_TYPE,
-          config: { type: 'metric' },
-        }),
+        'show total requests': createResolvedPanelContent(
+          {
+            type: LENS_EMBEDDABLE_TYPE,
+            config: { type: 'metric' },
+          },
+          'Created a titleless metric showing total requests.'
+        ),
         'show p95 latency': {
           type: 'failure',
           failure: {
@@ -335,6 +340,15 @@ describe('executeDashboardOperations', () => {
         type: 'add_panels',
         identifier: 'show p95 latency',
         error: 'ES|QL generation failed',
+      },
+    ]);
+    const generatedPanel = getPanelsOnly(result.dashboardData.panels).find(
+      (panel) => panel.grid.x === 24 && panel.grid.y === 0
+    );
+    expect(result.panelSummaries).toEqual([
+      {
+        panelId: generatedPanel?.id,
+        summary: 'Created a titleless metric showing total requests.',
       },
     ]);
   });
@@ -1186,14 +1200,20 @@ describe('executeDashboardOperations', () => {
         ],
         logger,
         resolvePanelContent: createResolvePanelContent({
-          'panel-1': createResolvedPanelContent({
-            type: LENS_EMBEDDABLE_TYPE,
-            config: { type: 'bar' },
-          }),
-          'section-panel-1': createResolvedPanelContent({
-            type: LENS_EMBEDDABLE_TYPE,
-            config: { type: 'line' },
-          }),
+          'panel-1': createResolvedPanelContent(
+            {
+              type: LENS_EMBEDDABLE_TYPE,
+              config: { type: 'bar' },
+            },
+            'Changed the panel to a bar chart and retained its title.'
+          ),
+          'section-panel-1': createResolvedPanelContent(
+            {
+              type: LENS_EMBEDDABLE_TYPE,
+              config: { type: 'line' },
+            },
+            'Changed the panel to a line chart with the legend below.'
+          ),
         }),
       });
 
@@ -1214,6 +1234,16 @@ describe('executeDashboardOperations', () => {
           config: { type: 'line' },
         })
       );
+      expect(result.panelSummaries).toEqual([
+        {
+          panelId: 'panel-1',
+          summary: 'Changed the panel to a bar chart and retained its title.',
+        },
+        {
+          panelId: 'section-panel-1',
+          summary: 'Changed the panel to a line chart with the legend below.',
+        },
+      ]);
     });
 
     it('resolves repeated visualization edits against the latest panel state', async () => {

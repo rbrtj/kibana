@@ -174,6 +174,12 @@ export const editPanelsOperation = defineOperation({
       }
 
       nextDashboardData = updateResult.dashboardData;
+      if (attempt.summary) {
+        context.panelSummaries.push({
+          panelId: panelInput.panelId,
+          summary: attempt.summary,
+        });
+      }
     }
 
     return nextDashboardData;
