@@ -1259,6 +1259,7 @@ describe('executeDashboardOperations', () => {
           summary: 'Changed the panel to a line chart with the legend below.',
         },
       ]);
+      expect([...result.contentResolvedPanelIds].sort()).toEqual(['panel-1', 'section-panel-1']);
     });
 
     it('resolves repeated visualization edits against the latest panel state', async () => {
@@ -1480,6 +1481,7 @@ describe('executeDashboardOperations', () => {
             'Panel "panel-1" with type "aiOpsLogRateAnalysis" is not supported for inline visualization editing.',
         },
       ]);
+      expect(result.contentResolvedPanelIds.size).toBe(0);
     });
 
     it('resolves multiple panel edits in one edit_panels op in parallel', async () => {

@@ -5,11 +5,10 @@
  * 2.0.
  */
 
-import { buildLensConfig, buildVegaConfig } from '@kbn/agent-builder-visualizations-server';
 import { SupportedChartType } from '@kbn/agent-builder-common/tools/tool_result';
+import { buildLensConfig, buildVegaConfig } from '@kbn/agent-builder-visualizations-server';
 import { VEGA_VIS_TYPE } from '@kbn/agent-builder-visualizations-common';
 import type { ModelProvider, ToolEventEmitter } from '@kbn/agent-builder-server';
-import { SupportedChartType } from '@kbn/agent-builder-common/tools/tool_result';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
 import type { Logger } from '@kbn/logging';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
@@ -129,7 +128,10 @@ describe('createVisPanelResolver', () => {
       type: 'vis',
       operationType: 'edit_panels',
       identifier: 'panel-1',
-      nlQuery: 'change the title',
+      nlQuery: 'turn this into a line chart',
+      chartType: SupportedChartType.XY,
+      esql: 'FROM logs-* | STATS count = COUNT(*)',
+      additionalChartConfigInstructions: 'Polish the existing config.',
       existingPanel: {
         id: 'panel-1',
         type: LENS_EMBEDDABLE_TYPE,
@@ -142,8 +144,55 @@ describe('createVisPanelResolver', () => {
       expect.objectContaining({
         existingConfig: JSON.stringify({ type: 'xy' }),
         parsedExistingConfig: { type: 'xy' },
+        chartType: SupportedChartType.XY,
+        esql: 'FROM logs-* | STATS count = COUNT(*)',
+        additionalChartConfigInstructions: 'Polish the existing config.',
       })
     );
+  });
+
+  it('returns the authoring summary when prettifying panel configs', async () => {
+    mockedBuildLensConfig.mockResolvedValue({
+      ...createBuildLensConfigResult({ type: 'metric' }),
+      summary: 'Right-aligned the metric value.',
+    });
+
+    const resolveVisPanel = createVisPanelResolver({
+      logger,
+      modelProvider,
+      events,
+      esClient,
+    });
+
+    const result = await resolveVisPanel({
+      type: 'vis',
+      operationType: 'prettify_panel_configs',
+      identifier: 'panel-1',
+      nlQuery: 'Polish this visualization',
+      chartType: SupportedChartType.Metric,
+      esql: 'FROM logs-* | STATS count = COUNT(*)',
+      additionalChartConfigInstructions: 'Describe the changes.',
+      existingPanel: {
+        id: 'panel-1',
+        type: LENS_EMBEDDABLE_TYPE,
+        config: { type: 'metric' },
+        grid: { w: 12, h: 8, x: 0, y: 0 },
+      },
+    });
+
+    expect(mockedBuildLensConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalChartConfigInstructions: 'Describe the changes.',
+      })
+    );
+    expect(result).toEqual({
+      type: 'success',
+      panelContent: {
+        type: LENS_EMBEDDABLE_TYPE,
+        config: { type: 'metric' },
+      },
+      summary: 'Right-aligned the metric value.',
+    });
   });
 
   it('creates a Vega panel in the attachment API shape (config.spec) when renderer is "vega"', async () => {

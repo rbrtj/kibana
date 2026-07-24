@@ -69,6 +69,7 @@ export const prepareOperationExecution = async ({
     failures,
     panelSummaries,
     resolvedPanelCreationRequests,
+    contentResolvedPanelIds: new Set(),
     resolvePanelContent,
   };
 };

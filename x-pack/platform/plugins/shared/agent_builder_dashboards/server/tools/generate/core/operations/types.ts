@@ -18,6 +18,7 @@ export interface OperationExecutionContext {
   failures: PanelFailure[];
   panelSummaries: PanelSummary[];
   resolvedPanelCreationRequests: Map<number, ResolvedPanelCreationRequest[]>;
+  contentResolvedPanelIds: Set<string>;
   resolvePanelContent?: ResolvePanelContent;
 }
 

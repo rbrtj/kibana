@@ -27,7 +27,11 @@ export type PanelContentAttempt =
     };
 
 /** Operations that can trigger inline panel resolution. */
-export type InlinePanelOperationType = 'add_section' | 'add_panels' | 'edit_panels';
+export type InlinePanelOperationType =
+  | 'add_section'
+  | 'add_panels'
+  | 'edit_panels'
+  | 'prettify_panel_configs';
 
 export interface PanelSummary {
   panelId: string;
