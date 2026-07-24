@@ -85,7 +85,7 @@ const summarizeDashboard = (dashboardData: DashboardAttachmentData) => ({
  * Kibana attachment persistence so the LLM works against a lightweight reference:
  * - the prior payload is read server-side from `dashboardAttachmentId`,
  * - the generated payload is persisted as a `dashboard` attachment,
- * - the result returns only the attachment id, version, and a compact summary.
+ * - the result returns only the attachment id, version, and compact dashboard/panel summaries.
  *
  * This keeps the heavy payload out of the LLM transcript — the model references
  * the attachment id to render it rather than copying it into the next tool call.
@@ -98,7 +98,7 @@ export const generateDashboardTool = (): BuiltinSkillBoundedTool<
     type: ToolType.builtin,
     description: `Generate or update a dashboard from ordered operations.
 
-Persists the resulting dashboard as an attachment and returns its id plus a compact summary (not the full payload). Reference the returned attachment id to render the dashboard; do not copy the payload into follow-up tool calls.
+Persists the resulting dashboard as an attachment and returns its id, a compact dashboard summary, and one-sentence summaries for successfully authored panels (not the full payload). Reference the returned attachment id to render the dashboard; do not copy the payload into follow-up tool calls.
 
 Use operations[] to:
 1. set metadata
@@ -124,7 +124,7 @@ Use operations[] to:
 
         const dashboardAttachmentId = previousAttachmentId ?? uuidv4();
 
-        const { dashboardData, failures } = await executeDashboardOperations({
+        const { dashboardData, failures, panelSummaries } = await executeDashboardOperations({
           dashboardData: latestVersion?.data,
           operations,
           logger,
@@ -171,6 +171,13 @@ Use operations[] to:
                 attachment_id: attachment.id,
                 version: attachment.current_version ?? 1,
                 dashboard: summarizeDashboard(finalDashboardData),
+                panel_summaries:
+                  panelSummaries.length > 0
+                    ? panelSummaries.map(({ panelId, summary }) => ({
+                        panel_id: panelId,
+                        summary,
+                      }))
+                    : undefined,
                 failures: failures.length > 0 ? failures : undefined,
               },
             },

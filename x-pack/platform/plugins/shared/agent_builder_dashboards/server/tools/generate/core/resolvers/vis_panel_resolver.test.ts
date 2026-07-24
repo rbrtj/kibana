@@ -9,6 +9,7 @@ import { buildLensConfig, buildVegaConfig } from '@kbn/agent-builder-visualizati
 import { SupportedChartType } from '@kbn/agent-builder-common/tools/tool_result';
 import { VEGA_VIS_TYPE } from '@kbn/agent-builder-visualizations-common';
 import type { ModelProvider, ToolEventEmitter } from '@kbn/agent-builder-server';
+import { SupportedChartType } from '@kbn/agent-builder-common/tools/tool_result';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
 import type { Logger } from '@kbn/logging';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
@@ -41,6 +42,7 @@ describe('createVisPanelResolver', () => {
     ({
       validatedConfig,
       selectedChartType: 'metric',
+      summary: 'Created a titleless metric showing total requests.',
       esqlQuery: 'FROM logs-* | STATS count = COUNT(*)',
     } as Awaited<ReturnType<typeof buildLensConfig>>);
 
@@ -74,12 +76,43 @@ describe('createVisPanelResolver', () => {
         type: LENS_EMBEDDABLE_TYPE,
         config: { type: 'metric' },
       },
+      summary: 'Created a titleless metric showing total requests.',
     });
     expect(mockedBuildLensConfig).toHaveBeenCalledWith(
       expect.objectContaining({
         includeTimeRange: false,
       })
     );
+  });
+
+  it('creates panel content when the authoring summary is missing', async () => {
+    mockedBuildLensConfig.mockResolvedValue({
+      validatedConfig: { type: 'metric' },
+      selectedChartType: SupportedChartType.Metric,
+      esqlQuery: 'FROM logs-* | STATS count = COUNT(*)',
+    });
+    const resolveVisPanel = createVisPanelResolver({
+      logger,
+      modelProvider,
+      events,
+      esClient,
+    });
+
+    await expect(
+      resolveVisPanel({
+        type: 'vis',
+        operationType: 'add_panels',
+        identifier: 'show total requests',
+        nlQuery: 'show total requests',
+        index: 'logs-*',
+      })
+    ).resolves.toEqual({
+      type: 'success',
+      panelContent: {
+        type: LENS_EMBEDDABLE_TYPE,
+        config: { type: 'metric' },
+      },
+    });
   });
 
   it('passes the existing Lens config when editing a Lens panel', async () => {
@@ -118,6 +151,7 @@ describe('createVisPanelResolver', () => {
     mockedBuildVegaConfig.mockResolvedValue({
       spec,
       title: 'Requests by host',
+      summary: 'Created a bar chart of requests by host with a concise title.',
       esqlQuery: 'FROM logs-*',
     });
 
@@ -138,6 +172,7 @@ describe('createVisPanelResolver', () => {
         type: VEGA_VIS_TYPE,
         config: { spec, title: 'Requests by host' },
       },
+      summary: 'Created a bar chart of requests by host with a concise title.',
     });
     expect(mockedBuildVegaConfig).toHaveBeenCalledWith(
       expect.objectContaining({ nlQuery: 'a small multiples chart', existingSpec: undefined })
@@ -166,7 +201,11 @@ describe('createVisPanelResolver', () => {
   it('keeps the Vega renderer and reuses the embedded spec when editing a vega panel', async () => {
     const existingSpec = '{"$schema":"vega-lite","mark":"bar"}';
     const nextSpec = '{"$schema":"vega-lite","mark":"line"}';
-    mockedBuildVegaConfig.mockResolvedValue({ spec: nextSpec, esqlQuery: 'FROM logs-*' });
+    mockedBuildVegaConfig.mockResolvedValue({
+      spec: nextSpec,
+      summary: 'Changed the panel to a line chart.',
+      esqlQuery: 'FROM logs-*',
+    });
 
     const resolveVisPanel = createVisPanelResolver({ logger, modelProvider, events, esClient });
 
@@ -191,6 +230,7 @@ describe('createVisPanelResolver', () => {
         type: VEGA_VIS_TYPE,
         config: { spec: nextSpec },
       },
+      summary: 'Changed the panel to a line chart.',
     });
     expect(mockedBuildVegaConfig).toHaveBeenCalledWith(expect.objectContaining({ existingSpec }));
     expect(mockedBuildLensConfig).not.toHaveBeenCalled();

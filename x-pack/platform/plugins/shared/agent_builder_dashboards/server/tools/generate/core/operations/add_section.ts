@@ -46,12 +46,16 @@ export const addSectionOperation = defineOperation({
       const sectionPanels: AttachmentPanel[] = [];
 
       for (const [panelInputIndex, item] of operation.panels.entries()) {
-        const panelContent = materializePanelInput(item, panelInputIndex);
-        if (panelContent === undefined) {
+        const materializedPanel = materializePanelInput(item, panelInputIndex);
+        if (materializedPanel === undefined) {
           continue;
         }
 
-        sectionPanels.push({ id: uuidv4(), ...panelContent, grid: item.grid });
+        const panelId = uuidv4();
+        sectionPanels.push({ id: panelId, ...materializedPanel.panelContent, grid: item.grid });
+        if (materializedPanel.summary) {
+          context.panelSummaries.push({ panelId, summary: materializedPanel.summary });
+        }
       }
 
       nextSection = {
