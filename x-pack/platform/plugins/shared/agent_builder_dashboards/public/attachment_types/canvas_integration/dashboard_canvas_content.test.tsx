@@ -611,6 +611,7 @@ describe('DashboardCanvasAttachment', () => {
           viewMode: 'edit',
           title: 'Test Dashboard',
           description: 'Test Description',
+          changeSources: ['agent'],
         })
       );
     });
@@ -842,6 +843,15 @@ describe('DashboardCanvasAttachment', () => {
   });
 
   describe('DashboardRenderer', () => {
+    it('tags the agent as the change source of the rendered dashboard', async () => {
+      await renderDashboardCanvasAttachment();
+
+      const { getCreationOptions } = (DashboardRenderer as jest.Mock).mock.calls[0][0];
+      await expect(getCreationOptions()).resolves.toMatchObject({
+        changeSources: ['agent'],
+      });
+    });
+
     it('passes the existing saved object id when the linked dashboard exists', async () => {
       const attachmentWithOrigin: DashboardAttachment = {
         ...mockAttachment,

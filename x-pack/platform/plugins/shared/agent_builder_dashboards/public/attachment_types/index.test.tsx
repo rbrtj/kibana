@@ -546,7 +546,8 @@ describe('registerDashboardAttachmentUiDefinition', () => {
       deps.emitChatEvent('conversation-1', createMockDashboardUpdatedEvent('attachment-1'));
 
       expect(mockApi.setState).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'Updated Dashboard' })
+        expect.objectContaining({ title: 'Updated Dashboard' }),
+        { changeSources: ['agent'] }
       );
 
       cleanup?.();

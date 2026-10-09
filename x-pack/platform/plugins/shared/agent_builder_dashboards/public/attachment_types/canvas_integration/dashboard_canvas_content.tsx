@@ -17,6 +17,7 @@ import type { UseEuiTheme } from '@elastic/eui';
 import { DashboardRenderer } from '@kbn/dashboard-plugin/public';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import type { DashboardAttachment } from '@kbn/agent-builder-dashboards-common/types';
+import { AGENT_CHANGE_SOURCE } from '../../../common';
 import type { SavedObjectStatus } from './use_register_canvas_action_buttons';
 import { useDashboardPreviewUnifiedSearch } from './use_dashboard_preview_unified_search';
 import { useRegisterCanvasActionButtons } from './use_register_canvas_action_buttons';
@@ -116,6 +117,7 @@ export const DashboardCanvasContent = ({
     () =>
       Promise.resolve({
         getInitialInput: () => ({ ...dashboardState, viewMode: 'view' as const }),
+        changeSources: [AGENT_CHANGE_SOURCE],
       }),
     [dashboardState]
   );
