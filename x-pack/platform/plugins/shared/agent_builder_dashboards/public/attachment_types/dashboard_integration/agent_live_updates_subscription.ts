@@ -11,7 +11,11 @@ import type { AgentBuilderPluginStart, BrowserChatEvent } from '@kbn/agent-build
 import type { DashboardAttachment } from '@kbn/agent-builder-dashboards-common';
 import { attachmentDataToDashboardState } from '@kbn/agent-builder-dashboards-common';
 import type { DashboardApi } from '@kbn/dashboard-plugin/public';
-import { DASHBOARD_UPDATED_UI_EVENT, type DashboardUpdatedUiEventData } from '../../../common';
+import {
+  AGENT_CHANGE_SOURCE,
+  DASHBOARD_UPDATED_UI_EVENT,
+  type DashboardUpdatedUiEventData,
+} from '../../../common';
 
 export interface AgentLiveUpdatesSubscriptionParams {
   agentBuilder: AgentBuilderPluginStart;
@@ -54,5 +58,7 @@ export const createAgentLiveUpdatesSubscription = ({
         return;
       }
 
-      api.setState(attachmentDataToDashboardState(attachment.data));
+      api.setState(attachmentDataToDashboardState(attachment.data), {
+        changeSources: [AGENT_CHANGE_SOURCE],
+      });
     });

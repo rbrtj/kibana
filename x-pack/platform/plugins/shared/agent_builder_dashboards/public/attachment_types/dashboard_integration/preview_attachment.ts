@@ -8,6 +8,7 @@
 import type { DashboardAttachment } from '@kbn/agent-builder-dashboards-common/types';
 import { attachmentDataToDashboardState } from '@kbn/agent-builder-dashboards-common';
 import type { DashboardApi } from '@kbn/dashboard-plugin/public';
+import { AGENT_CHANGE_SOURCE } from '../../../common';
 
 interface PreviewAttachmentInDashboardParams {
   attachment: DashboardAttachment;
@@ -26,7 +27,7 @@ export const previewAttachmentInDashboard = async ({
   // a) Viewing saved dashboard + attachment linked to same dashboard -> apply state
   // Also handles both being undefined (unsaved dashboard, unlinked attachment)
   if (attachment.origin === currentSavedObjectId) {
-    dashboardApi.setState(dashboardState);
+    dashboardApi.setState(dashboardState, { changeSources: [AGENT_CHANGE_SOURCE] });
     return;
   }
 
@@ -37,7 +38,7 @@ export const previewAttachmentInDashboard = async ({
 
   if (!currentSavedObjectId && !linkedDashboardExists) {
     // b) Viewing unsaved dashboard + attachment linked to deleted dashboard
-    dashboardApi.setState(dashboardState);
+    dashboardApi.setState(dashboardState, { changeSources: [AGENT_CHANGE_SOURCE] });
     return;
   }
 
@@ -49,5 +50,6 @@ export const previewAttachmentInDashboard = async ({
     time_range: dashboardState.time_range,
     dashboardId: linkedDashboardExists ? attachment.origin : undefined,
     viewMode: 'edit',
+    changeSources: [AGENT_CHANGE_SOURCE],
   });
 };

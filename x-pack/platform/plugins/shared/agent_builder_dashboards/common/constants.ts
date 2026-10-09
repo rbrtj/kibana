@@ -30,6 +30,8 @@ export const dashboardTools = {
  */
 export const DASHBOARDS_SKILL_ID = 'dashboards';
 
+export const AGENT_CHANGE_SOURCE = 'agent';
+
 /**
  * The skill reference in the chat input's serialized badge form. Both the input editor and the
  * conversation timeline render it as a `/dashboards` chip, and the agent treats it as an explicit

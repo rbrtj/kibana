@@ -5,6 +5,11 @@
  * 2.0.
  */
 
-export { dashboardTools, DASHBOARDS_SKILL_ID, getDashboardsSkillBadge } from './constants';
+export {
+  AGENT_CHANGE_SOURCE,
+  dashboardTools,
+  DASHBOARDS_SKILL_ID,
+  getDashboardsSkillBadge,
+} from './constants';
 export { DASHBOARD_UPDATED_UI_EVENT } from './ui_events';
 export type { DashboardUpdatedUiEventData } from './ui_events';
