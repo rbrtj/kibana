@@ -30,7 +30,7 @@ export const dashboardTools = {
  */
 export const DASHBOARDS_SKILL_ID = 'dashboards';
 
-export const AGENT_CHANGE_SOURCE = 'agent';
+export const AGENT_CHANGE_SOURCE = 'agent' as const;
 
 /**
  * The skill reference in the chat input's serialized badge form. Both the input editor and the
