@@ -14,5 +14,6 @@ module.exports = {
   coverageReporters: ['text', 'html'],
   collectCoverageFrom: [
     '<rootDir>/x-pack/platform/plugins/shared/agent_builder_dashboards/server/**/*.{ts,tsx}',
+    '<rootDir>/x-pack/platform/plugins/shared/agent_builder_dashboards/public/**/*.{ts,tsx}',
   ],
 };
