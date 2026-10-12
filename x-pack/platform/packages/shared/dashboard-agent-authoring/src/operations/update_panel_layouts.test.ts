@@ -118,4 +118,59 @@ describe('update_panel_layouts', () => {
       },
     ]);
   });
+
+  it('records a failure when a panel to move is missing', async () => {
+    const result = await executeDashboardOperations({
+      dashboardData: buildDashboard({ panels: [section('section-a', 'Section A', 0)] }),
+      operations: [
+        {
+          operation: 'update_panel_layouts',
+          panels: [{ panelId: 'missing-panel', sectionId: 'section-a' }],
+        },
+      ],
+      logger,
+    });
+
+    expect(result.dashboardData.panels).toEqual([section('section-a', 'Section A', 0)]);
+    expect(result.failures).toEqual([
+      {
+        type: 'update_panel_layouts',
+        identifier: 'missing-panel',
+        error: 'Panel "missing-panel" not found.',
+      },
+    ]);
+  });
+
+  it('keeps a panel unchanged when neither grid nor sectionId is given', async () => {
+    const dashboardData = buildDashboard({
+      panels: [lensPanel('top-1'), section('section-a', 'Section A', 10)],
+    });
+
+    const result = await executeDashboardOperations({
+      dashboardData,
+      operations: [{ operation: 'update_panel_layouts', panels: [{ panelId: 'top-1' }] }],
+      logger,
+    });
+
+    expect(result.dashboardData).toEqual(dashboardData);
+    expect(result.failures).toEqual([]);
+  });
+
+  it('rejects a move into an unknown section id without changing the dashboard', async () => {
+    const dashboardData = buildDashboard({ panels: [lensPanel('top-1')] });
+
+    await expect(
+      executeDashboardOperations({
+        dashboardData,
+        operations: [
+          {
+            operation: 'update_panel_layouts',
+            panels: [{ panelId: 'top-1', sectionId: 'missing-section' }],
+          },
+        ],
+        logger,
+      })
+    ).rejects.toThrow('Section "missing-section" not found.');
+    expect(dashboardData.panels).toEqual([lensPanel('top-1')]);
+  });
 });

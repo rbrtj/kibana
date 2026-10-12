@@ -18,6 +18,7 @@ import {
   attachmentItem,
   success,
   failure,
+  METRIC_PANEL_CONTENT,
   resolveAttachment,
   createResolvePanelContent,
 } from './test_helpers';
@@ -211,6 +212,29 @@ describe('add_section', () => {
     ]);
     expect(getSections(result.dashboardData.panels)).toEqual([
       expect.objectContaining({ title: 'Overview', panels: [] }),
+    ]);
+  });
+
+  it('records the authoring note of a generated section panel under its new id', async () => {
+    const result = await executeDashboardOperations({
+      dashboardData: buildDashboard(),
+      operations: [
+        {
+          operation: 'add_section',
+          title: 'Overview',
+          grid: { y: 0 },
+          panels: [requestItem('show total requests')],
+        },
+      ],
+      logger,
+      resolvePanelContent: createResolvePanelContent({
+        'show total requests': success(METRIC_PANEL_CONTENT, 'Created a total requests metric.'),
+      }),
+    });
+
+    const [{ panels }] = getSections(result.dashboardData.panels);
+    expect(result.panelAuthoringNotes).toEqual([
+      { panelId: panels[0].id, authoringNote: 'Created a total requests metric.' },
     ]);
   });
 });

@@ -143,6 +143,28 @@ describe('add_controls', () => {
     expect(failures).toEqual([]);
   });
 
+  it('reports a user-requested second time_slider_control on an existing dashboard', async () => {
+    const { dashboardData, failures } = await executeDashboardOperations({
+      dashboardData: buildDashboard({ pinned_panels: [TIME_SLIDER_CONTROL] }),
+      operations: [
+        {
+          operation: 'add_controls',
+          controls: [{ type: 'time_slider_control', user_requested: true }],
+        },
+      ],
+      logger,
+    });
+
+    expect(dashboardData.pinned_panels).toEqual([TIME_SLIDER_CONTROL]);
+    expect(failures).toEqual([
+      {
+        type: 'add_controls',
+        identifier: 'controls[0]',
+        error: 'A dashboard can contain at most one time_slider_control.',
+      },
+    ]);
+  });
+
   it('appends to existing controls', async () => {
     const { dashboardData } = await executeDashboardOperations({
       dashboardData: buildDashboard({
@@ -304,6 +326,40 @@ describe('add_controls', () => {
         fieldNames: ['host', 'host.keyword', 'service.name', 'service.name.keyword'],
         projectRouting: '_alias:*',
       });
+    });
+
+    it('requests fields once per index, without a keyword sibling for range sliders', async () => {
+      const resolveFieldCapabilities = createFieldCapabilitiesResolver({
+        host: usable('keyword'),
+        bytes: usable('long'),
+      });
+
+      const { dashboardData } = await addControls(
+        [
+          { type: 'options_list_control', field_name: 'host', index },
+          { type: 'range_slider_control', field_name: 'bytes', index: 'metrics-*' },
+        ],
+        resolveFieldCapabilities
+      );
+
+      expect(resolveFieldCapabilities.mock.calls).toEqual([
+        [{ index, fieldNames: ['host', 'host.keyword'], projectRouting: undefined }],
+        [{ index: 'metrics-*', fieldNames: ['bytes'], projectRouting: undefined }],
+      ]);
+      expect(getEsqlQueries(dashboardData)).toEqual([
+        `FROM ${index} | STATS BY host`,
+        'FROM metrics-* | STATS BY bytes',
+      ]);
+    });
+
+    it('keeps an aggregatable text field whose keyword sibling is not usable', async () => {
+      const { dashboardData, failures } = await addControls(
+        [{ type: 'options_list_control', field_name: 'host', index }],
+        createFieldCapabilitiesResolver({ host: usable('text'), 'host.keyword': NOT_AGGREGATABLE })
+      );
+
+      expect(failures).toEqual([]);
+      expect(getEsqlQueries(dashboardData)).toEqual([`FROM ${index} | STATS BY host`]);
     });
 
     it('keeps controls unvalidated when field loading fails', async () => {

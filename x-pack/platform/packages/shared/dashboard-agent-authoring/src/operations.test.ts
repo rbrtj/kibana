@@ -343,4 +343,18 @@ describe('executeDashboardOperations', () => {
       })
     ).rejects.toThrow('Inline panel resolver is required for panel creation operations.');
   });
+
+  it('starts from an empty "User Dashboard" when no dashboard is given', async () => {
+    const result = await executeDashboardOperations({
+      operations: [{ operation: 'add_section', title: 'Overview', grid: { y: 0 } }],
+      logger,
+    });
+
+    expect(result.dashboardData).toEqual({
+      title: 'User Dashboard',
+      panels: [
+        { id: expect.any(String), title: 'Overview', collapsed: false, grid: { y: 0 }, panels: [] },
+      ],
+    });
+  });
 });

@@ -45,4 +45,29 @@ describe('remove_section', () => {
 
     expect(result.dashboardData.panels).toEqual([expect.objectContaining({ id: 'top-1' })]);
   });
+
+  it('keeps section-relative rows when promoting panels onto an otherwise empty dashboard', async () => {
+    const result = await executeDashboardOperations({
+      dashboardData: buildDashboard({
+        panels: [section('section-a', 'Section A', 20, [lensPanel('section-a-1', 4)])],
+      }),
+      operations: [{ operation: 'remove_section', id: 'section-a', panelAction: 'promote' }],
+      logger,
+    });
+
+    expect(result.dashboardData.panels).toEqual([lensPanel('section-a-1', 4)]);
+  });
+
+  it('rejects an unknown section id without changing the dashboard', async () => {
+    const dashboardData = buildDashboard({ panels: [section('section-a', 'Section A', 0)] });
+
+    await expect(
+      executeDashboardOperations({
+        dashboardData,
+        operations: [{ operation: 'remove_section', id: 'missing', panelAction: 'delete' }],
+        logger,
+      })
+    ).rejects.toThrow('Section "missing" not found.');
+    expect(dashboardData.panels).toEqual([section('section-a', 'Section A', 0)]);
+  });
 });

@@ -30,4 +30,14 @@ describe('remove_controls', () => {
 
     expect(getControlIds(dashboardData)).toEqual(remainingIds);
   });
+
+  it('stores an empty control list on a dashboard without controls', async () => {
+    const { dashboardData } = await executeDashboardOperations({
+      dashboardData: buildDashboard(),
+      operations: [{ operation: 'remove_controls', control_ids: ['service-id'] }],
+      logger,
+    });
+
+    expect(dashboardData).toEqual({ ...buildDashboard(), pinned_panels: [] });
+  });
 });

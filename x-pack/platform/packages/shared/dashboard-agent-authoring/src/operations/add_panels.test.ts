@@ -234,6 +234,30 @@ describe('add_panels', () => {
     ]);
   });
 
+  it('drops the authoring note of an attachment panel', async () => {
+    const result = await executeDashboardOperations({
+      dashboardData: buildDashboard(),
+      operations: [{ operation: 'add_panels', panels: [attachmentItem('metric-vis')] }],
+      logger,
+      resolveAttachmentPanel: () => success(METRIC_PANEL_CONTENT, 'Placed the metric.'),
+    });
+
+    expect(getPanelsOnly(result.dashboardData.panels)).toEqual([
+      expect.objectContaining({ type: LENS_EMBEDDABLE_TYPE, config: { type: 'metric' } }),
+    ]);
+    expect(result.panelAuthoringNotes).toEqual([]);
+  });
+
+  it('rejects an attachment-source panel when no attachment resolver is given', async () => {
+    await expect(
+      executeDashboardOperations({
+        dashboardData: buildDashboard(),
+        operations: [{ operation: 'add_panels', panels: [attachmentItem('metric-vis')] }],
+        logger,
+      })
+    ).rejects.toThrow('Attachment panel resolver is required for attachment-source panels.');
+  });
+
   it('throws when add_panels markdown item references an invalid sectionId', async () => {
     await expect(
       executeDashboardOperations({

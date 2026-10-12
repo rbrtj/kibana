@@ -5,6 +5,7 @@
  * 2.0.
  */
 
+import { SupportedChartType } from '@kbn/agent-builder-common/tools/tool_result';
 import type { AttachmentPanel } from '@kbn/agent-builder-dashboards-common';
 import { MARKDOWN_EMBEDDABLE_TYPE } from '@kbn/dashboard-markdown-schemas';
 import { CUSTOM_CONTENT_EMBEDDABLE_TYPE } from '@kbn/custom-content-common';
@@ -22,6 +23,7 @@ import {
   lensPanel,
   section,
   success,
+  failure,
   mockPanelResolver,
   createResolvePanelContent,
   deferredPanelResolver,
@@ -244,6 +246,49 @@ describe('edit_panels', () => {
     ]);
   });
 
+  it('rejects a request edit without a panel resolver', async () => {
+    await expect(
+      executeDashboardOperations({
+        dashboardData: buildDashboard({ panels: [lensPanel('panel-1')] }),
+        operations: [
+          {
+            operation: 'edit_panels',
+            panels: [{ source: 'request', panelId: 'panel-1', query: 'make this a bar chart' }],
+          },
+        ],
+        logger,
+      })
+    ).rejects.toThrow('Inline panel resolver is required for edit_panels panel requests.');
+  });
+
+  it('records a resolver failure for one edit and still applies the others', async () => {
+    const result = await executeDashboardOperations({
+      dashboardData: buildDashboard({ panels: [lensPanel('panel-1', 0), lensPanel('panel-2', 9)] }),
+      operations: [
+        {
+          operation: 'edit_panels',
+          panels: [
+            { source: 'request', panelId: 'panel-1', query: 'make this a bar chart' },
+            { source: 'request', panelId: 'panel-2', query: 'make this a line chart' },
+          ],
+        },
+      ],
+      logger,
+      resolvePanelContent: createResolvePanelContent({
+        'panel-1': failure('edit_panels', 'panel-1', 'ES|QL generation failed'),
+        'panel-2': success({ type: LENS_EMBEDDABLE_TYPE, config: { type: 'line' } }),
+      }),
+    });
+
+    expect(result.failures).toEqual([
+      { type: 'edit_panels', identifier: 'panel-1', error: 'ES|QL generation failed' },
+    ]);
+    expect(result.dashboardData.panels).toEqual([
+      lensPanel('panel-1', 0),
+      { ...lensPanel('panel-2', 9), config: { type: 'line' } },
+    ]);
+  });
+
   describe('request edit renderer', () => {
     const editWith = async (
       existingPanel: AttachmentPanel,
@@ -285,6 +330,37 @@ describe('edit_panels', () => {
             'Panel "cc-1" is a custom content panel. Edit it with source: "request", renderer: "custom_content".',
         },
       ]);
+    });
+
+    it.each([
+      [
+        'forwards chartType and applyChartRules on a Lens edit',
+        lensPanel('panel-1'),
+        { chartType: SupportedChartType.XY, applyChartRules: true },
+        { renderer: 'lens', chartType: SupportedChartType.XY, applyChartRules: true },
+      ],
+      [
+        'drops applyChartRules on a Vega edit that names its renderer',
+        vegaPanel('vega-1'),
+        { renderer: 'vega', applyChartRules: true },
+        { renderer: 'vega', applyChartRules: undefined },
+      ],
+      [
+        'forwards applyChartRules on a Vega edit whose renderer is inferred',
+        vegaPanel('vega-1'),
+        { applyChartRules: true },
+        { renderer: 'vega', applyChartRules: true },
+      ],
+    ])('%s', async (_, existingPanel, panelInput, expectedRequest) => {
+      const { resolvePanelContent } = await editWith(existingPanel, panelInput);
+
+      expect(resolvePanelContent).toHaveBeenCalledWith({
+        operationType: 'edit_panels',
+        identifier: existingPanel.id,
+        existingPanel,
+        nlQuery: 'change the title',
+        ...expectedRequest,
+      });
     });
 
     it('resolves a custom_content edit that names its renderer', async () => {

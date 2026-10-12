@@ -44,4 +44,17 @@ describe('remove_panels', () => {
       },
     ]);
   });
+
+  it('leaves the dashboard unchanged without a failure when no panel id matches', async () => {
+    const dashboardData = buildDashboard({ panels: [lensPanel('top-1')] });
+
+    const result = await executeDashboardOperations({
+      dashboardData,
+      operations: [{ operation: 'remove_panels', panelIds: ['missing'] }],
+      logger,
+    });
+
+    expect(result.dashboardData).toEqual(dashboardData);
+    expect(result.failures).toEqual([]);
+  });
 });
