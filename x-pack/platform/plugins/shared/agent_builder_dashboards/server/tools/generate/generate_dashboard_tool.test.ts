@@ -13,12 +13,17 @@ import {
   type DashboardAttachmentData,
 } from '@kbn/agent-builder-dashboards-common';
 import { DASHBOARD_UPDATED_UI_EVENT } from '../../../common';
+import { createPanelResolver } from './resolvers/panel_resolver';
 import { generateDashboardTool } from './generate_dashboard_tool';
 
 jest.mock('./resolvers/panel_resolver', () => ({ createPanelResolver: jest.fn() }));
 
 type GenerateDashboardHandler = ReturnType<typeof generateDashboardTool>['handler'];
 type Operations = Parameters<GenerateDashboardHandler>[0]['operations'];
+
+const mockCreatePanelResolver = createPanelResolver as jest.MockedFunction<
+  typeof createPanelResolver
+>;
 
 const setMetadata: Operations = [{ operation: 'set_metadata', title: 'Agent dashboard' }];
 
@@ -143,10 +148,127 @@ describe('generateDashboardTool handler', () => {
         metadata: { dashboardAttachmentId: undefined },
       },
     ],
+    [
+      'the dashboard attachment does not exist',
+      { dashboardAttachmentId: 'missing' },
+      {
+        message: 'Failed to generate dashboard: Dashboard attachment "missing" not found.',
+        metadata: { dashboardAttachmentId: 'missing' },
+      },
+    ],
+    [
+      'the attachment update returns nothing',
+      {
+        dashboardAttachmentId: 'dashboard-attachment-id',
+        update: jest.fn().mockResolvedValue(undefined),
+      },
+      {
+        message:
+          'Failed to generate dashboard: Failed to persist dashboard attachment "dashboard-attachment-id".',
+        metadata: { dashboardAttachmentId: 'dashboard-attachment-id' },
+      },
+    ],
   ])('returns an error and sends no UI event when %s', async (_, options, data) => {
     const { results, sendUiEvent } = await callHandler(options);
 
     expect(results).toEqual([{ type: ToolResultType.error, data }]);
     expect(sendUiEvent).not.toHaveBeenCalled();
+  });
+
+  it('reports version 1 when the updated attachment has no current version', async () => {
+    const { results } = await callHandler({
+      dashboardAttachmentId: 'dashboard-attachment-id',
+      update: jest.fn(async (id: string) => ({ id })),
+    });
+
+    expect(results).toMatchObject([{ type: ToolResultType.dashboard, data: { version: 1 } }]);
+  });
+
+  it('summarizes sections, controls, authoring notes and failures', async () => {
+    mockCreatePanelResolver.mockReturnValueOnce(async () => ({
+      type: 'success' as const,
+      panelContent: { type: 'vis', config: { type: 'metric' } },
+      authoringNote: 'Shows total requests.',
+    }));
+    const markdownGrid = { x: 0, y: 0, w: 24, h: 5 };
+
+    const { results } = await callHandler({
+      dashboardAttachmentId: 'dashboard-attachment-id',
+      existing: {
+        ...existingDashboard,
+        panels: [
+          {
+            id: 'section-1',
+            title: 'Details',
+            collapsed: true,
+            grid: { y: 20 },
+            panels: [
+              { type: 'markdown', id: 'panel-2', grid: markdownGrid, config: { content: 'Notes' } },
+            ],
+          },
+        ],
+        pinned_panels: [
+          { id: 'control-1', type: 'options_list_control', config: { title: 'Service' } },
+        ],
+      },
+      operations: [
+        {
+          operation: 'add_panels',
+          panels: [
+            { source: 'request', query: 'show total requests', grid: { x: 0, y: 0, w: 24, h: 9 } },
+            {
+              source: 'attachment',
+              attachment_id: 'missing-vis',
+              grid: { x: 24, y: 0, w: 24, h: 9 },
+            },
+          ],
+        },
+      ] as Operations,
+    });
+
+    expect(results).toEqual([
+      {
+        type: ToolResultType.dashboard,
+        tool_result_id: expect.any(String),
+        data: {
+          attachment_id: 'dashboard-attachment-id',
+          version: 2,
+          dashboard: {
+            title: 'Existing dashboard',
+            description: undefined,
+            panels: [
+              {
+                id: 'section-1',
+                title: 'Details',
+                collapsed: true,
+                grid: { y: 20 },
+                panels: [
+                  {
+                    type: 'markdown',
+                    id: 'panel-2',
+                    grid: markdownGrid,
+                    authoring_note: undefined,
+                  },
+                ],
+              },
+              {
+                type: 'vis',
+                id: expect.any(String),
+                grid: { x: 0, y: 0, w: 24, h: 9 },
+                authoring_note: 'Shows total requests.',
+              },
+            ],
+            controls: [{ id: 'control-1', type: 'options_list_control', title: 'Service' }],
+          },
+          failures: [
+            {
+              type: 'add_panels',
+              identifier: 'missing-vis',
+              error: 'Attachment "missing-vis" not found in this conversation.',
+            },
+          ],
+        },
+      },
+    ]);
   });
 });
