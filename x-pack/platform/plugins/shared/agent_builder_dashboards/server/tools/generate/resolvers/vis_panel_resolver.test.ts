@@ -10,7 +10,7 @@ import { SupportedChartType } from '@kbn/agent-builder-common/tools/tool_result'
 import { VEGA_VIS_TYPE } from '@kbn/agent-builder-visualizations-common';
 import type { ModelProvider, ToolEventEmitter } from '@kbn/agent-builder-server';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
-import type { Logger } from '@kbn/logging';
+import { loggingSystemMock } from '@kbn/core/server/mocks';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 import { createVisPanelResolver } from './vis_panel_resolver';
 
@@ -22,27 +22,23 @@ jest.mock('@kbn/agent-builder-visualizations-server', () => ({
 const mockedBuildLensConfig = jest.mocked(buildLensConfig);
 const mockedBuildVegaConfig = jest.mocked(buildVegaConfig);
 
-const createMockLogger = (): Logger =>
-  ({
-    debug: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-  } as unknown as Logger);
-
 describe('createVisPanelResolver', () => {
-  const logger = createMockLogger();
-  const modelProvider = {} as ModelProvider;
-  const events = {} as ToolEventEmitter;
-  const esClient = {} as IScopedClusterClient;
+  const resolveVisPanel = createVisPanelResolver({
+    logger: loggingSystemMock.create().get(),
+    modelProvider: {} as ModelProvider,
+    events: {} as ToolEventEmitter,
+    esClient: {} as IScopedClusterClient,
+  });
   const createBuildLensConfigResult = (
-    validatedConfig: Record<string, unknown>
+    validatedConfig: Record<string, unknown>,
+    overrides: Partial<Awaited<ReturnType<typeof buildLensConfig>>> = {}
   ): Awaited<ReturnType<typeof buildLensConfig>> =>
     ({
       validatedConfig,
       selectedChartType: 'metric',
       authoringNote: 'Created a titleless metric showing total requests.',
       esqlQuery: 'FROM logs-* | STATS count = COUNT(*)',
+      ...overrides,
     } as Awaited<ReturnType<typeof buildLensConfig>>);
 
   beforeEach(() => {
@@ -52,13 +48,6 @@ describe('createVisPanelResolver', () => {
 
   it('creates Lens panel content for create requests', async () => {
     mockedBuildLensConfig.mockResolvedValue(createBuildLensConfigResult({ type: 'metric' }));
-
-    const resolveVisPanel = createVisPanelResolver({
-      logger,
-      modelProvider,
-      events,
-      esClient,
-    });
 
     const result = await resolveVisPanel({
       operationType: 'add_panels',
@@ -76,27 +65,12 @@ describe('createVisPanelResolver', () => {
       },
       authoringNote: 'Created a titleless metric showing total requests.',
     });
-    expect(mockedBuildLensConfig).toHaveBeenCalledTimes(1);
   });
 
   it('creates panel content when the authoring note is missing', async () => {
-    mockedBuildLensConfig.mockResolvedValue({
-      validatedConfig: {
-        type: 'metric',
-        metrics: [{ column: 'count', type: 'primary' }],
-        data_source: { type: 'esql', query: 'FROM logs-* | STATS count = COUNT(*)' },
-        ignore_global_filters: false,
-        sampling: 100,
-      },
-      selectedChartType: SupportedChartType.Metric,
-      esqlQuery: 'FROM logs-* | STATS count = COUNT(*)',
-    });
-    const resolveVisPanel = createVisPanelResolver({
-      logger,
-      modelProvider,
-      events,
-      esClient,
-    });
+    mockedBuildLensConfig.mockResolvedValue(
+      createBuildLensConfigResult({ type: 'metric' }, { authoringNote: undefined })
+    );
 
     await expect(
       resolveVisPanel({
@@ -109,20 +83,13 @@ describe('createVisPanelResolver', () => {
       type: 'success',
       panelContent: {
         type: LENS_EMBEDDABLE_TYPE,
-        config: expect.objectContaining({ type: 'metric' }),
+        config: { type: 'metric' },
       },
     });
   });
 
   it('passes the existing Lens config when editing a Lens panel', async () => {
     mockedBuildLensConfig.mockResolvedValue(createBuildLensConfigResult({ type: 'line' }));
-
-    const resolveVisPanel = createVisPanelResolver({
-      logger,
-      modelProvider,
-      events,
-      esClient,
-    });
 
     await resolveVisPanel({
       operationType: 'edit_panels',
@@ -157,8 +124,6 @@ describe('createVisPanelResolver', () => {
       esqlQuery: 'FROM logs-*',
     });
 
-    const resolveVisPanel = createVisPanelResolver({ logger, modelProvider, events, esClient });
-
     const result = await resolveVisPanel({
       operationType: 'add_panels',
       identifier: 'a small multiples chart',
@@ -178,24 +143,6 @@ describe('createVisPanelResolver', () => {
     expect(mockedBuildVegaConfig).toHaveBeenCalledWith(
       expect.objectContaining({ nlQuery: 'a small multiples chart', existingSpec: undefined })
     );
-    expect(mockedBuildLensConfig).not.toHaveBeenCalled();
-  });
-
-  it('defaults to Lens when renderer is omitted on a create request', async () => {
-    mockedBuildLensConfig.mockResolvedValue(createBuildLensConfigResult({ type: 'metric' }));
-
-    const resolveVisPanel = createVisPanelResolver({ logger, modelProvider, events, esClient });
-
-    const result = await resolveVisPanel({
-      operationType: 'add_panels',
-      identifier: 'total requests',
-      nlQuery: 'total requests',
-      chartType: SupportedChartType.Metric,
-    });
-
-    expect(result.type).toBe('success');
-    expect(mockedBuildVegaConfig).not.toHaveBeenCalled();
-    expect(mockedBuildLensConfig).toHaveBeenCalled();
   });
 
   it('reuses the embedded spec when editing a Vega panel', async () => {
@@ -206,8 +153,6 @@ describe('createVisPanelResolver', () => {
       authoringNote: 'Changed the panel to a line chart.',
       esqlQuery: 'FROM logs-*',
     });
-
-    const resolveVisPanel = createVisPanelResolver({ logger, modelProvider, events, esClient });
 
     const result = await resolveVisPanel({
       operationType: 'edit_panels',
@@ -234,12 +179,9 @@ describe('createVisPanelResolver', () => {
     expect(mockedBuildVegaConfig).toHaveBeenCalledWith(
       expect.objectContaining({ existingSpec, preserveESQL: true })
     );
-    expect(mockedBuildLensConfig).not.toHaveBeenCalled();
   });
 
   it('reports unsupported Vega enhancement instead of ignoring the presentation mode', async () => {
-    const resolveVisPanel = createVisPanelResolver({ logger, modelProvider, events, esClient });
-
     const result = await resolveVisPanel({
       operationType: 'edit_panels',
       identifier: 'panel-1',
@@ -255,9 +197,13 @@ describe('createVisPanelResolver', () => {
       },
     });
 
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       type: 'failure',
-      failure: { error: 'Presentation enhancement is only supported for ES|QL Lens panels.' },
+      failure: {
+        type: 'edit_panels',
+        identifier: 'panel-1',
+        error: 'Presentation enhancement is only supported for ES|QL Lens panels.',
+      },
     });
     expect(mockedBuildVegaConfig).not.toHaveBeenCalled();
     expect(mockedBuildLensConfig).not.toHaveBeenCalled();

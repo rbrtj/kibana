@@ -54,7 +54,7 @@ describe('createControlFieldCapabilitiesResolver', () => {
 
     const capabilities = await createControlFieldCapabilitiesResolver({ esClient })({
       index,
-      fieldNames: ['bytes'],
+      fieldNames: ['bytes', 'host', 'host.keyword', 'message', 'status', 'count', 'tags'],
     });
 
     expect(Object.fromEntries(capabilities)).toEqual({

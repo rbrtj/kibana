@@ -66,7 +66,7 @@ describe('createCustomContentPanelResolver', () => {
       });
     });
 
-    it('samples and stores the ES|QL query when present', async () => {
+    it('passes the ES|QL query to the template and stores it', async () => {
       const result = await resolve(addRequest({ esql: 'FROM logs-* | STATS count = COUNT(*)' }));
 
       expect(resolveTemplate).toHaveBeenCalledWith({
@@ -116,8 +116,8 @@ describe('createCustomContentPanelResolver', () => {
       });
     });
 
-    it('resolves from the existing template when the edit carries no query', async () => {
-      await resolve(
+    it('uses an empty prompt when the edit has no nlQuery', async () => {
+      const result = await resolve(
         editRequest(customContentPanel({ template: '<div>old</div>' }), {
           esql: 'FROM metrics-*',
         })
@@ -126,6 +126,9 @@ describe('createCustomContentPanelResolver', () => {
       expect(resolveTemplate).toHaveBeenCalledWith(
         expect.objectContaining({ prompt: '', existingTemplate: '<div>old</div>' })
       );
+      expect(result).toMatchObject({
+        panelContent: { config: { esql_query: ['FROM metrics-*'] } },
+      });
     });
 
     it('samples a replaced query', async () => {

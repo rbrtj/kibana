@@ -27,58 +27,34 @@ const makeVisualizationAttachment = (data: Record<string, unknown>) => ({
 });
 
 describe('createAttachmentPanelResolver', () => {
-  it('maps a Lens attachment onto the Lens embeddable', () => {
-    const resolve = createAttachmentPanelResolver({
-      attachments: makeAttachments(
-        makeVisualizationAttachment({
-          renderer: 'lens',
-          query: 'errors over time',
-          visualization: { type: 'lnsXY' },
-          esql: 'FROM logs',
-        })
-      ),
-    });
+  const lensPanelContent = { type: LENS_EMBEDDABLE_TYPE, config: { type: 'lnsXY' } };
 
-    expect(resolve('att-1', 'add_panels')).toEqual({
-      type: 'success',
-      panelContent: { type: LENS_EMBEDDABLE_TYPE, config: { type: 'lnsXY' } },
-    });
-  });
+  // Attachments created before the renderer discriminator existed are implicitly Lens.
+  it.each([
+    ['lens', { type: 'lnsXY' }, lensPanelContent],
+    [undefined, { type: 'lnsXY' }, lensPanelContent],
+    [
+      'vega',
+      { spec: '{"$schema":"vega-lite"}' },
+      { type: VEGA_VIS_TYPE, config: { spec: '{"$schema":"vega-lite"}' } },
+    ],
+  ])(
+    'maps an attachment with renderer %s onto its panel type',
+    (renderer, visualization, panelContent) => {
+      const resolve = createAttachmentPanelResolver({
+        attachments: makeAttachments(
+          makeVisualizationAttachment({
+            ...(renderer ? { renderer } : {}),
+            query: 'errors over time',
+            visualization,
+            esql: 'FROM logs',
+          })
+        ),
+      });
 
-  // Attachments created before the discriminator existed are implicitly Lens.
-  it('treats an attachment with no renderer as Lens', () => {
-    const resolve = createAttachmentPanelResolver({
-      attachments: makeAttachments(
-        makeVisualizationAttachment({
-          query: 'errors over time',
-          visualization: { type: 'lnsXY' },
-          esql: 'FROM logs',
-        })
-      ),
-    });
-
-    expect(resolve('att-1', 'add_panels')).toMatchObject({
-      panelContent: { type: LENS_EMBEDDABLE_TYPE },
-    });
-  });
-
-  it('maps a Vega attachment onto the Vega panel type', () => {
-    const resolve = createAttachmentPanelResolver({
-      attachments: makeAttachments(
-        makeVisualizationAttachment({
-          renderer: 'vega',
-          query: 'faceted bars',
-          visualization: { spec: '{"$schema":"vega-lite"}' },
-          esql: 'FROM logs',
-        })
-      ),
-    });
-
-    expect(resolve('att-1', 'add_panels')).toEqual({
-      type: 'success',
-      panelContent: { type: VEGA_VIS_TYPE, config: { spec: '{"$schema":"vega-lite"}' } },
-    });
-  });
+      expect(resolve('att-1', 'add_panels')).toEqual({ type: 'success', panelContent });
+    }
+  );
 
   it('maps a custom content attachment onto the custom content embeddable state', () => {
     const resolve = createAttachmentPanelResolver({
@@ -126,21 +102,16 @@ describe('createAttachmentPanelResolver', () => {
 
   // Failures are returned, not thrown: one bad id fails its own panel and is reported
   // alongside the others rather than aborting the whole operation.
-  it('attributes the failure to the operation that asked for the panel', () => {
+  it('fails when the attachment does not exist, attributed to the requesting operation', () => {
     const resolve = createAttachmentPanelResolver({ attachments: makeAttachments(undefined) });
 
-    expect(resolve('missing', 'add_section')).toMatchObject({
+    expect(resolve('missing', 'add_section')).toEqual({
       type: 'failure',
-      failure: { type: 'add_section' },
-    });
-  });
-
-  it('fails when the attachment does not exist', () => {
-    const resolve = createAttachmentPanelResolver({ attachments: makeAttachments(undefined) });
-
-    expect(resolve('missing', 'add_panels')).toMatchObject({
-      type: 'failure',
-      failure: { identifier: 'missing', error: expect.stringContaining('not found') },
+      failure: {
+        type: 'add_section',
+        identifier: 'missing',
+        error: 'Attachment "missing" not found in this conversation.',
+      },
     });
   });
 

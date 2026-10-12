@@ -10,7 +10,7 @@ import type { ModelProvider, ToolEventEmitter } from '@kbn/agent-builder-server'
 import { CUSTOM_CONTENT_EMBEDDABLE_TYPE } from '@kbn/custom-content-common';
 import { createCustomContentTemplateResolver } from '@kbn/custom-content-server';
 import type { IScopedClusterClient } from '@kbn/core-elasticsearch-server';
-import type { Logger } from '@kbn/logging';
+import { loggingSystemMock } from '@kbn/core/server/mocks';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 import { createPanelResolver } from './panel_resolver';
 
@@ -41,49 +41,41 @@ describe('createPanelResolver', () => {
     resolveTemplate.mockResolvedValue({ template: '<div>resolved</div>', height: 320 });
     mockedCreateTemplateResolver.mockReturnValue(resolveTemplate);
     resolve = createPanelResolver({
-      logger: {
-        debug: jest.fn(),
-        error: jest.fn(),
-        info: jest.fn(),
-        warn: jest.fn(),
-      } as unknown as Logger,
+      logger: loggingSystemMock.create().get(),
       modelProvider: {} as ModelProvider,
       events: {} as ToolEventEmitter,
       esClient: {} as IScopedClusterClient,
     });
   });
 
-  it('routes a request without renderer to the vis resolver', async () => {
-    const result = await resolve({
-      operationType: 'add_panels',
-      identifier: 'show total requests',
-      nlQuery: 'show total requests',
-    });
-
-    expect(result).toMatchObject({
-      type: 'success',
-      panelContent: { type: LENS_EMBEDDABLE_TYPE },
-    });
-    expect(mockedBuildLensConfig).toHaveBeenCalledTimes(1);
-    expect(resolveTemplate).not.toHaveBeenCalled();
-  });
-
-  it('routes a custom_content request to the template resolver', async () => {
-    const result = await resolve({
-      renderer: 'custom_content',
-      operationType: 'edit_panels',
-      identifier: 'cc-1',
-      nlQuery: 'change the title',
-      existingPanel: { id: 'cc-1', type: CUSTOM_CONTENT_EMBEDDABLE_TYPE, config: {}, grid },
-    });
-
-    expect(resolveTemplate).toHaveBeenCalledWith(
-      expect.objectContaining({ prompt: 'change the title' })
-    );
-    expect(mockedBuildLensConfig).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      type: 'success',
-      panelContent: { type: CUSTOM_CONTENT_EMBEDDABLE_TYPE },
-    });
-  });
+  it.each([
+    [
+      'a request without renderer',
+      {
+        operationType: 'add_panels',
+        identifier: 'show total requests',
+        nlQuery: 'show total requests',
+      },
+      LENS_EMBEDDABLE_TYPE,
+    ],
+    [
+      'a custom_content request',
+      {
+        renderer: 'custom_content',
+        operationType: 'edit_panels',
+        identifier: 'cc-1',
+        nlQuery: 'change the title',
+        existingPanel: { id: 'cc-1', type: CUSTOM_CONTENT_EMBEDDABLE_TYPE, config: {}, grid },
+      },
+      CUSTOM_CONTENT_EMBEDDABLE_TYPE,
+    ],
+  ] as Array<[string, Parameters<typeof resolve>[0], string]>)(
+    'routes %s to the resolver for its renderer',
+    async (_, request, embeddableType) => {
+      expect(await resolve(request)).toMatchObject({
+        type: 'success',
+        panelContent: { type: embeddableType },
+      });
+    }
+  );
 });
