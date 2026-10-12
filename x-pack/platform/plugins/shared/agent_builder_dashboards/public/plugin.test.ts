@@ -23,14 +23,19 @@ jest.mock('./attachment_types', () => ({
 
 describe('AgentBuilderDashboardsPlugin', () => {
   const registerActionAsync = jest.fn();
-  const openChat = jest.fn();
 
-  const createCoreStart = (showAgentBuilder: boolean) =>
+  const createCoreStart = ({
+    showAgentBuilder = true,
+    dashboardCapabilities = { showWriteControls: true },
+  }: {
+    showAgentBuilder?: boolean;
+    dashboardCapabilities?: Record<string, boolean>;
+  } = {}) =>
     ({
       application: {
         capabilities: {
           agentBuilder: { show: showAgentBuilder },
-          dashboard_v2: { showWriteControls: true },
+          dashboard_v2: dashboardCapabilities,
         },
       },
       chrome: {},
@@ -39,7 +44,7 @@ describe('AgentBuilderDashboardsPlugin', () => {
   const createStartDependencies = () =>
     ({
       agentBuilder: {
-        openChat,
+        openChat: jest.fn(),
         getAgentBuilderAccess: jest.fn(),
       },
       dashboard: {},
@@ -55,38 +60,34 @@ describe('AgentBuilderDashboardsPlugin', () => {
       },
     } as unknown as AgentBuilderDashboardsPluginPublicStartDependencies);
 
+  const startPlugin = (options?: Parameters<typeof createCoreStart>[0]) => {
+    const plugin = new AgentBuilderDashboardsPlugin({} as PluginInitializerContext);
+    plugin.start(createCoreStart(options), createStartDependencies());
+    return plugin;
+  };
+
   beforeEach(() => {
-    registerActionAsync.mockClear();
-    openChat.mockClear();
+    jest.clearAllMocks();
   });
 
-  it('registers the lazy chat and enhance actions when Agent Builder is available', async () => {
-    const plugin = new AgentBuilderDashboardsPlugin({} as PluginInitializerContext);
+  it('registers lazy chat and enhance actions whose ids match their registration keys', async () => {
+    startPlugin();
 
-    plugin.start(createCoreStart(true), createStartDependencies());
-
-    expect(registerActionAsync).toHaveBeenCalledWith(
-      OPEN_DASHBOARD_CHAT_ACTION_ID,
-      expect.any(Function)
-    );
-    expect(registerActionAsync).toHaveBeenCalledWith(
-      ENHANCE_DASHBOARD_ACTION_ID,
-      expect.any(Function)
+    const registered = await Promise.all(
+      registerActionAsync.mock.calls.map(async ([key, createAction]) => [
+        key,
+        (await createAction()).id,
+      ])
     );
 
-    const openChatAction = await registerActionAsync.mock.calls[0][1]();
-    expect(openChatAction.id).toBe(OPEN_DASHBOARD_CHAT_ACTION_ID);
-
-    await openChatAction.execute({
-      trigger: { id: OPEN_DASHBOARD_CHAT_ACTION_ID },
-    });
-    expect(openChat).toHaveBeenCalled();
+    expect(registered).toEqual([
+      [OPEN_DASHBOARD_CHAT_ACTION_ID, OPEN_DASHBOARD_CHAT_ACTION_ID],
+      [ENHANCE_DASHBOARD_ACTION_ID, ENHANCE_DASHBOARD_ACTION_ID],
+    ]);
   });
 
   it('does not register dashboard Chat entry points without Agent Builder capabilities', () => {
-    const plugin = new AgentBuilderDashboardsPlugin({} as PluginInitializerContext);
-
-    plugin.start(createCoreStart(false), createStartDependencies());
+    startPlugin({ showAgentBuilder: false });
 
     expect(registerActionAsync).not.toHaveBeenCalled();
   });

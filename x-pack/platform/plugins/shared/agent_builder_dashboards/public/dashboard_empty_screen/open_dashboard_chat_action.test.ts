@@ -11,57 +11,43 @@ import { createOpenDashboardChatAction } from './open_dashboard_chat_action';
 
 describe('createOpenDashboardChatAction', () => {
   const openChat = jest.fn() as jest.MockedFunction<AgentBuilderPluginStart['openChat']>;
+  const trigger = { id: OPEN_DASHBOARD_CHAT_ACTION_ID };
 
   beforeEach(() => {
     openChat.mockClear();
   });
 
-  it('uses the agent icon and Create with chat label', () => {
-    const action = createOpenDashboardChatAction(openChat);
-    const context = { trigger: { id: OPEN_DASHBOARD_CHAT_ACTION_ID } };
+  it('presents a Create with chat entry point that is always compatible', async () => {
+    const { getIconType, getDisplayName, getDisplayNameTooltip, isCompatible } =
+      createOpenDashboardChatAction(openChat);
+    if (!getIconType || !getDisplayNameTooltip || !isCompatible) {
+      throw new Error('Expected the action to define its icon, tooltip and compatibility');
+    }
 
-    expect(action.getIconType?.(context)).toBe('productAgent');
-    expect(action.getDisplayName?.(context)).toBe('Create with chat');
-    expect(action.getDisplayNameTooltip?.(context)).toBe('Build any panel using an agent.');
-  });
-
-  it('is compatible', async () => {
-    const action = createOpenDashboardChatAction(openChat);
-
-    await expect(
-      action.isCompatible?.({
-        initialMessage: 'Create a dashboard',
-        trigger: { id: OPEN_DASHBOARD_CHAT_ACTION_ID },
-      })
-    ).resolves.toBe(true);
-  });
-
-  it('opens Chat with the provided prompt without sending', async () => {
-    const action = createOpenDashboardChatAction(openChat);
-
-    await action.execute({
-      initialMessage: 'Create a dashboard',
-      trigger: { id: OPEN_DASHBOARD_CHAT_ACTION_ID },
+    expect({
+      icon: getIconType({ trigger }),
+      label: getDisplayName({ trigger }),
+      tooltip: getDisplayNameTooltip({ trigger }),
+      compatible: await isCompatible({ trigger }),
+    }).toEqual({
+      icon: 'productAgent',
+      label: 'Create with chat',
+      tooltip: 'Build any panel using an agent.',
+      compatible: true,
     });
+  });
+
+  it.each([
+    ['the provided prompt', 'Create a dashboard', 'Create a dashboard'],
+    ['an empty editor when no prompt is provided', undefined, ''],
+  ])('opens Chat with %s without sending', async (_, initialMessage, expectedMessage) => {
+    const action = createOpenDashboardChatAction(openChat);
+
+    await action.execute({ initialMessage, trigger });
 
     expect(openChat).toHaveBeenCalledWith({
       newConversation: true,
-      initialMessage: 'Create a dashboard',
-      autoSendInitialMessage: false,
-      sessionTag: 'dashboard',
-    });
-  });
-
-  it('opens Chat with an empty editor when no prompt is provided', async () => {
-    const action = createOpenDashboardChatAction(openChat);
-
-    await action.execute({
-      trigger: { id: OPEN_DASHBOARD_CHAT_ACTION_ID },
-    });
-
-    expect(openChat).toHaveBeenCalledWith({
-      newConversation: true,
-      initialMessage: '',
+      initialMessage: expectedMessage,
       autoSendInitialMessage: false,
       sessionTag: 'dashboard',
     });
