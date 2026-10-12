@@ -20,8 +20,8 @@ describe('createOpenDashboardChatAction', () => {
   it('presents a Create with chat entry point that is always compatible', async () => {
     const { getIconType, getDisplayName, getDisplayNameTooltip, isCompatible } =
       createOpenDashboardChatAction(openChat);
-    if (!getIconType || !getDisplayNameTooltip || !isCompatible) {
-      throw new Error('Expected the action to define its icon, tooltip and compatibility');
+    if (!getIconType || !getDisplayName || !getDisplayNameTooltip || !isCompatible) {
+      throw new Error('Expected the action to define its icon, label, tooltip and compatibility');
     }
 
     expect({

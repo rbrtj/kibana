@@ -10,7 +10,7 @@ import { BehaviorSubject } from 'rxjs';
 import type { AggregateQuery } from '@kbn/es-query';
 import type { EmbeddableChatAccess } from '@kbn/agent-builder-browser';
 import { DASHBOARD_ATTACHMENT_TYPE } from '@kbn/agent-builder-dashboards-common';
-import type { DashboardApi } from '@kbn/dashboard-plugin/public';
+import type { DashboardApi, EnhanceDashboardActionContext } from '@kbn/dashboard-plugin/public';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 import type { IdGenerator } from '../attachment_types';
 import { createEnhanceDashboardAction } from './enhance_dashboard_action';
@@ -94,20 +94,24 @@ const createAction = ({
     canWriteDashboards,
     draftAttachmentId,
   });
+  const getCompatibilityChangesSubject = defined(
+    action.getCompatibilityChangesSubject,
+    'getCompatibilityChangesSubject'
+  );
+  const getDisabledStateChangesSubject = defined(
+    action.getDisabledStateChangesSubject,
+    'getDisabledStateChangesSubject'
+  );
   return {
     openChat,
     action,
     isCompatible: defined(action.isCompatible, 'isCompatible'),
     isDisabled: defined(action.isDisabled, 'isDisabled'),
     getDisplayNameTooltip: defined(action.getDisplayNameTooltip, 'getDisplayNameTooltip'),
-    getCompatibilityChangesSubject: defined(
-      action.getCompatibilityChangesSubject,
-      'getCompatibilityChangesSubject'
-    ),
-    getDisabledStateChangesSubject: defined(
-      action.getDisabledStateChangesSubject,
-      'getDisabledStateChangesSubject'
-    ),
+    getCompatibilityChangesSubject: (context: EnhanceDashboardActionContext) =>
+      defined(getCompatibilityChangesSubject(context), 'the compatibility changes subject'),
+    getDisabledStateChangesSubject: (context: EnhanceDashboardActionContext) =>
+      defined(getDisabledStateChangesSubject(context), 'the disabled state changes subject'),
   };
 };
 
