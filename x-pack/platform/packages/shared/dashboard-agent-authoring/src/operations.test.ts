@@ -253,10 +253,10 @@ describe('executeDashboardOperations', () => {
     });
 
     it.each([
-      ['an empty key', '', false],
-      ['a 256-character key', 'a'.repeat(256), true],
-      ['a 257-character key', 'a'.repeat(257), false],
-    ])('parses %s as valid: %s', (_, key, valid) => {
+      ['an empty key', false, ''],
+      ['a 256-character key', true, 'a'.repeat(256)],
+      ['a 257-character key', false, 'a'.repeat(257)],
+    ])('parses %s as valid: %s', (_, valid, key) => {
       expect(
         dashboardOperationSchema.safeParse({
           operation: 'add_section',
