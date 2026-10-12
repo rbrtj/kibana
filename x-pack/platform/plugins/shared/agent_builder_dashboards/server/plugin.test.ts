@@ -38,11 +38,14 @@ describe('AgentBuilderDashboardsPlugin', () => {
     expect(registerSkill).toHaveBeenCalledWith(expect.objectContaining({ id: 'dashboards' }));
     expect(registerSmlType).toHaveBeenCalledWith(expect.objectContaining({ id: 'dashboard' }));
 
-    const [[attachmentType]] = registerAttachmentType.mock.calls;
-    expect(attachmentType.id).toBe('platform.dashboard.dashboard_state');
+    const [[{ id, resolve }]] = registerAttachmentType.mock.calls;
+    expect(id).toBe('platform.dashboard.dashboard_state');
+    if (!resolve) {
+      throw new Error('dashboard attachment type must define resolve');
+    }
 
     const savedObjectsClient = savedObjectsClientMock.create();
-    const resolved = await attachmentType.resolve?.('dashboard-1', {
+    const resolved = await resolve('dashboard-1', {
       request: httpServerMock.createKibanaRequest(),
       spaceId: 'default',
       savedObjectsClient,
