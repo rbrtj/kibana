@@ -12,6 +12,7 @@ import {
 } from '@kbn/dashboard-plugin/public';
 import { AgentBuilderDashboardsPlugin } from './plugin';
 import type { AgentBuilderDashboardsPluginPublicStartDependencies } from './types';
+import { registerDashboardAttachmentUiDefinition } from './attachment_types';
 
 jest.mock('./attachment_types', () => ({
   registerDashboardAttachmentUiDefinition: jest.fn(() => jest.fn()),
@@ -90,5 +91,27 @@ describe('AgentBuilderDashboardsPlugin', () => {
     startPlugin({ showAgentBuilder: false });
 
     expect(registerActionAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['grants write access when dashboards show write controls', { showWriteControls: true }, true],
+    ['denies write access when the write controls capability is missing', {}, false],
+  ])('%s', (_, dashboardCapabilities, canWriteDashboards) => {
+    startPlugin({ dashboardCapabilities });
+
+    expect(registerDashboardAttachmentUiDefinition).toHaveBeenCalledWith(
+      expect.objectContaining({ canWriteDashboards })
+    );
+  });
+
+  it('unregisters the attachment UI on stop', () => {
+    const plugin = startPlugin();
+    const [{ value: cleanup }] = jest.mocked(registerDashboardAttachmentUiDefinition).mock.results;
+
+    expect(cleanup).not.toHaveBeenCalled();
+
+    plugin.stop();
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });

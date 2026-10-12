@@ -280,6 +280,19 @@ describe('createEnhanceDashboardAction', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('getDisabledStateChangesSubject emits when the children are replaced', () => {
+    const { getDisabledStateChangesSubject } = createAction();
+    const dashboardApi = createDashboardApi();
+    const next = jest.fn();
+    subscription = getDisabledStateChangesSubject({ dashboardApi }).subscribe(next);
+
+    (dashboardApi.children$ as BehaviorSubject<Record<string, ReturnType<typeof child>>>).next({
+      b: child([]),
+    });
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   it('getDisabledStateChangesSubject emits when a child ES|QL query changes', () => {
     const { getDisabledStateChangesSubject } = createAction();
     const esqlChild = child([]);
