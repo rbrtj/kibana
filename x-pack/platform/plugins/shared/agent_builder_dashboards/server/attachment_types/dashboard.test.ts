@@ -116,6 +116,33 @@ const setup = ({ read = jest.fn().mockResolvedValue(readResult()) } = {}) => {
 };
 
 describe('createDashboardAttachmentType', () => {
+  describe('validate', () => {
+    it('accepts panels and sections', async () => {
+      const { definition } = setup();
+      const data = dashboardData({
+        panels: [
+          lensPanel,
+          { id: 'section-1', title: 'Details', collapsed: false, grid: { y: 15 }, panels: [] },
+        ],
+      });
+
+      expect(await definition.validate(data)).toEqual({ valid: true, data });
+    });
+
+    it('rejects a panel wider than the grid', async () => {
+      const { definition } = setup();
+
+      expect(
+        await definition.validate(
+          dashboardData({ panels: [{ ...lensPanel, grid: { ...grid, w: 49 } }] })
+        )
+      ).toEqual({
+        valid: false,
+        error: expect.stringContaining('"message": "Too big: expected number to be <=48"'),
+      });
+    });
+  });
+
   describe('resolve', () => {
     it('reads the dashboard and converts Lens panels to API format', async () => {
       const { resolve, context, read, savedObjectsClient } = setup({
@@ -130,6 +157,31 @@ describe('createDashboardAttachmentType', () => {
         description: 'Main dashboard for key metrics',
         panels: [{ type: LENS_EMBEDDABLE_TYPE, id: 'panel-1', grid, config: metricApiConfig }],
       });
+    });
+
+    it('returns undefined and warns without a saved objects client', async () => {
+      const { resolve, context, logger, read } = setup();
+
+      const result = await resolve('dashboard-1', { ...context, savedObjectsClient: undefined });
+
+      expect(result).toBeUndefined();
+      expect(read).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to resolve dashboard attachment for origin "dashboard-1": Error: Saved objects client is required to read dashboard attachments'
+      );
+    });
+
+    it('returns undefined and warns when the dashboard read fails', async () => {
+      const { resolve, context, logger } = setup({
+        read: jest
+          .fn()
+          .mockRejectedValue(new Error('Saved object [dashboard/dashboard-1] not found')),
+      });
+
+      expect(await resolve('dashboard-1', context)).toBeUndefined();
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to resolve dashboard attachment for origin "dashboard-1": Error: Saved object [dashboard/dashboard-1] not found'
+      );
     });
   });
 
@@ -155,6 +207,59 @@ describe('createDashboardAttachmentType', () => {
 
       expect(await isStale(attachment(dashboardData()), context)).toBe(false);
       expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['the attachment has no origin', { origin: '' }, {}],
+      ['the attachment has no snapshot time', { origin_snapshot_at: '' }, {}],
+      ['the dashboard has no updated_at', {}, { updated_at: undefined }],
+      [
+        'the dashboard was updated before the snapshot',
+        {},
+        { updated_at: '2024-12-31T00:00:00.000Z' },
+      ],
+    ])(
+      'returns false for changed data when %s',
+      async (_name, attachmentOverrides, metaOverrides) => {
+        const { isStale, context, logger } = setup({
+          read: jest.fn().mockResolvedValue(readResult(undefined, metaOverrides)),
+        });
+
+        expect(
+          await isStale(
+            attachment(dashboardData({ title: 'Old title' }), attachmentOverrides),
+            context
+          )
+        ).toBe(false);
+        expect(logger.warn).not.toHaveBeenCalled();
+      }
+    );
+
+    it('returns false and warns when no version matches current_version', async () => {
+      const { isStale, context, logger } = setup();
+
+      expect(
+        await isStale(
+          attachment(dashboardData({ title: 'Old title' }), { current_version: 2 }),
+          context
+        )
+      ).toBe(false);
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Attachment "att-1" has no version matching current_version 2'
+      );
+    });
+
+    it('returns false and warns when the dashboard read fails', async () => {
+      const { isStale, context, logger } = setup({
+        read: jest
+          .fn()
+          .mockRejectedValue(new Error('Saved object [dashboard/dashboard-1] not found')),
+      });
+
+      expect(await isStale(attachment(dashboardData({ title: 'Old title' })), context)).toBe(false);
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to check staleness for dashboard attachment "dashboard-1": Error: Saved object [dashboard/dashboard-1] not found'
+      );
     });
   });
 });
