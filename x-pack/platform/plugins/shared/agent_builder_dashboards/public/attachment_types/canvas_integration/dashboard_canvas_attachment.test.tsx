@@ -514,6 +514,34 @@ describe('DashboardCanvasAttachment', () => {
     expect(updateOrigin).toHaveBeenCalledWith('new-dashboard-id');
   });
 
+  it('keeps the origin when the interactive save is cancelled', async () => {
+    const { mockApi, updateOrigin, clickButton } = await renderDashboardCanvasAttachment();
+    jest.mocked(mockApi.runInteractiveSave).mockResolvedValueOnce({});
+
+    await clickButton('Save');
+
+    expect(mockApi.runInteractiveSave).toHaveBeenCalledTimes(1);
+    expect(updateOrigin).not.toHaveBeenCalled();
+  });
+
+  it('treats the linked dashboard as missing when the existence check rejects', async () => {
+    const { mockApi, updateOrigin, clickButton } = await renderDashboardCanvasAttachment({
+      attachment: withOrigin('linked-dashboard-id'),
+      checkSavedDashboardExist: jest.fn().mockRejectedValue(new Error('network error')),
+    });
+
+    expect(DashboardRenderer).toHaveBeenLastCalledWith(
+      expect.objectContaining({ savedObjectId: undefined }),
+      {}
+    );
+
+    await clickButton('Save');
+
+    expect(mockApi.runQuickSave).not.toHaveBeenCalled();
+    expect(mockApi.runInteractiveSave).toHaveBeenCalledTimes(1);
+    expect(updateOrigin).toHaveBeenCalledWith('new-dashboard-id');
+  });
+
   describe('error fallback', () => {
     it('renders a fallback callout when the dashboard renderer throws', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
