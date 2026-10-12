@@ -5,70 +5,67 @@
  * 2.0.
  */
 
+import { elasticsearchServiceMock, loggingSystemMock } from '@kbn/core/server/mocks';
 import { ToolResultType } from '@kbn/agent-builder-common/tools/tool_result';
+import { hashContent } from '@kbn/agent-builder-common/attachments';
 import {
   DASHBOARD_ATTACHMENT_TYPE,
   type DashboardAttachmentData,
 } from '@kbn/agent-builder-dashboards-common';
 import { DASHBOARD_UPDATED_UI_EVENT } from '../../../common';
-import { retrieveLatestVersion } from './attachment_state';
-import {
-  executeDashboardOperations,
-  hasValidCreateMetadataOperations,
-} from '@kbn/dashboard-agent-authoring';
 import { generateDashboardTool } from './generate_dashboard_tool';
 
-jest.mock('./attachment_state', () => ({ retrieveLatestVersion: jest.fn() }));
-jest.mock('@kbn/dashboard-agent-authoring', () => ({
-  ...jest.requireActual('@kbn/dashboard-agent-authoring'),
-  executeDashboardOperations: jest.fn(),
-  hasValidCreateMetadataOperations: jest.fn(),
-}));
-jest.mock('./resolvers/control_field_capabilities_resolver', () => ({
-  createControlFieldCapabilitiesResolver: jest.fn(),
-}));
 jest.mock('./resolvers/panel_resolver', () => ({ createPanelResolver: jest.fn() }));
-jest.mock('./resolvers/attachment_panel_resolver', () => ({
-  createAttachmentPanelResolver: jest.fn(),
-}));
-jest.mock('./time_range', () => ({
-  applyDefaultDashboardTimeRange: jest.fn(
-    async ({ dashboardData }: { dashboardData: DashboardAttachmentData }) => ({
-      ...dashboardData,
-      time_range: { from: 'now-7d', to: 'now' },
-    })
-  ),
-}));
-jest.mock('@kbn/custom-content-server', () => ({
-  createCustomContentTemplateResolver: jest.fn(),
-}));
 
-const mockRetrieveLatestVersion = retrieveLatestVersion as jest.MockedFunction<
-  typeof retrieveLatestVersion
->;
-const mockExecuteDashboardOperations = executeDashboardOperations as jest.MockedFunction<
-  typeof executeDashboardOperations
->;
-const mockHasValidCreateMetadataOperations =
-  hasValidCreateMetadataOperations as jest.MockedFunction<typeof hasValidCreateMetadataOperations>;
+type GenerateDashboardHandler = ReturnType<typeof generateDashboardTool>['handler'];
+type Operations = Parameters<GenerateDashboardHandler>[0]['operations'];
 
-const generatedDashboard: DashboardAttachmentData = { title: 'Agent dashboard', panels: [] };
+const setMetadata: Operations = [{ operation: 'set_metadata', title: 'Agent dashboard' }];
 
-const callHandler = async (dashboardAttachmentId?: string) => {
+const existingDashboard: DashboardAttachmentData = {
+  title: 'Existing dashboard',
+  panels: [],
+  time_range: { from: 'now-15m', to: 'now' },
+};
+
+const dashboardRecord = (data: DashboardAttachmentData) => ({
+  id: 'dashboard-attachment-id',
+  type: DASHBOARD_ATTACHMENT_TYPE,
+  versions: [
+    { version: 1, data, created_at: '2025-01-01T00:00:00.000Z', content_hash: hashContent(data) },
+  ],
+  current_version: 1,
+  active: true,
+  readonly: false,
+});
+
+const callHandler = async ({
+  dashboardAttachmentId,
+  operations = setMetadata,
+  existing = existingDashboard,
+  add = jest.fn(async ({ id }: { id: string }) => ({ id, current_version: 1 })),
+  update = jest.fn(async (id: string) => ({ id, current_version: 2, origin: 'saved-id' })),
+}: {
+  dashboardAttachmentId?: string;
+  operations?: Operations;
+  existing?: DashboardAttachmentData;
+  add?: jest.Mock;
+  update?: jest.Mock;
+} = {}) => {
   const tool = generateDashboardTool();
   const sendUiEvent = jest.fn();
+  const records: Record<string, ReturnType<typeof dashboardRecord>> = {
+    'dashboard-attachment-id': dashboardRecord(existing),
+  };
   const ctx = {
-    logger: { info: jest.fn(), error: jest.fn() },
-    attachments: {
-      add: jest.fn(async ({ id }: { id: string }) => ({ id, current_version: 1 })),
-      update: jest.fn(async (id: string) => ({ id, current_version: 2, origin: 'saved-id' })),
-    },
+    logger: loggingSystemMock.create().get(),
+    attachments: { getAttachmentRecord: (id: string) => records[id], add, update },
     events: { sendUiEvent },
-    esClient: { asCurrentUser: {} },
+    esClient: elasticsearchServiceMock.createScopedClusterClient(),
   };
   const ret = await tool.handler(
-    { dashboardAttachmentId, operations: [] } as unknown as Parameters<typeof tool.handler>[0],
-    ctx as unknown as Parameters<typeof tool.handler>[1]
+    { dashboardAttachmentId, operations },
+    ctx as unknown as Parameters<GenerateDashboardHandler>[1]
   );
   if (!('results' in ret)) throw new Error('Unexpected HITL return from tool handler');
   return { results: ret.results, sendUiEvent };
@@ -77,50 +74,79 @@ const callHandler = async (dashboardAttachmentId?: string) => {
 describe('generateDashboardTool handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockHasValidCreateMetadataOperations.mockReturnValue(true);
-    mockExecuteDashboardOperations.mockResolvedValue({
-      dashboardData: generatedDashboard,
-      failures: [],
-      panelAuthoringNotes: [],
-    } as unknown as Awaited<ReturnType<typeof executeDashboardOperations>>);
   });
 
-  it.each([
-    ['created', undefined, undefined],
-    ['updated', 'dashboard-attachment-id', 'saved-id'],
-  ])('sends a dashboard updated UI event with the %s attachment', async (_, id, origin) => {
-    mockRetrieveLatestVersion.mockReturnValue(
-      id ? ({ data: generatedDashboard } as ReturnType<typeof retrieveLatestVersion>) : undefined
-    );
-
-    const { sendUiEvent } = await callHandler(id);
+  it('creates a dashboard and returns its summary', async () => {
+    const { results, sendUiEvent } = await callHandler();
 
     expect(sendUiEvent).toHaveBeenCalledWith(DASHBOARD_UPDATED_UI_EVENT, {
       attachment: {
-        id: id ?? expect.any(String),
+        id: expect.any(String),
         type: DASHBOARD_ATTACHMENT_TYPE,
-        data: { ...generatedDashboard, time_range: { from: 'now-7d', to: 'now' } },
-        origin,
+        data: { title: 'Agent dashboard', panels: [] },
+        origin: undefined,
+      },
+    });
+    const [[, { attachment }]] = sendUiEvent.mock.calls;
+    expect(results).toEqual([
+      {
+        type: ToolResultType.dashboard,
+        tool_result_id: expect.any(String),
+        data: {
+          attachment_id: attachment.id,
+          version: 1,
+          dashboard: { title: 'Agent dashboard', description: undefined, panels: [], controls: [] },
+          failures: undefined,
+        },
+      },
+    ]);
+  });
+
+  it('updates the referenced dashboard attachment in place', async () => {
+    const { results, sendUiEvent } = await callHandler({
+      dashboardAttachmentId: 'dashboard-attachment-id',
+    });
+
+    expect(results).toEqual([
+      {
+        type: ToolResultType.dashboard,
+        tool_result_id: expect.any(String),
+        data: {
+          attachment_id: 'dashboard-attachment-id',
+          version: 2,
+          dashboard: { title: 'Agent dashboard', description: undefined, panels: [], controls: [] },
+          failures: undefined,
+        },
+      },
+    ]);
+    expect(sendUiEvent).toHaveBeenCalledWith(DASHBOARD_UPDATED_UI_EVENT, {
+      attachment: {
+        id: 'dashboard-attachment-id',
+        type: DASHBOARD_ATTACHMENT_TYPE,
+        data: { ...existingDashboard, title: 'Agent dashboard' },
+        origin: 'saved-id',
       },
     });
   });
 
   it.each([
     [
-      'a new dashboard is missing its metadata',
-      () => mockHasValidCreateMetadataOperations.mockReturnValue(false),
+      'a new dashboard is missing its title',
+      { operations: [{ operation: 'set_metadata', description: 'No title' }] as Operations },
+      { message: 'New dashboards require a set_metadata operation with a non-empty title.' },
     ],
     [
-      'generating the dashboard fails',
-      () => mockExecuteDashboardOperations.mockRejectedValue(new Error('boom')),
+      'persisting the dashboard fails',
+      { add: jest.fn().mockRejectedValue(new Error('boom')) },
+      {
+        message: 'Failed to generate dashboard: boom',
+        metadata: { dashboardAttachmentId: undefined },
+      },
     ],
-  ])('does not send a UI event when %s', async (_, arrange) => {
-    mockRetrieveLatestVersion.mockReturnValue(undefined);
-    arrange();
+  ])('returns an error and sends no UI event when %s', async (_, options, data) => {
+    const { results, sendUiEvent } = await callHandler(options);
 
-    const { results, sendUiEvent } = await callHandler();
-
-    expect(results[0].type).toBe(ToolResultType.error);
+    expect(results).toEqual([{ type: ToolResultType.error, data }]);
     expect(sendUiEvent).not.toHaveBeenCalled();
   });
 });
