@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import type { Logger } from '@kbn/core/server';
+import { httpServerMock, loggingSystemMock, savedObjectsClientMock } from '@kbn/core/server/mocks';
 import {
   hashContent,
   type VersionedAttachmentWithOrigin,
@@ -13,67 +13,71 @@ import {
 import {
   DASHBOARD_ATTACHMENT_TYPE,
   attachmentDataToDashboardState,
+  type AttachmentPanel,
   type DashboardAttachmentData,
 } from '@kbn/agent-builder-dashboards-common';
 import type { DashboardPluginStart } from '@kbn/dashboard-plugin/server';
-import type { SavedObjectsClientContract } from '@kbn/core-saved-objects-api-server';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 import { createDashboardAttachmentType } from './dashboard';
 
-const dashboardAttachmentData: DashboardAttachmentData = {
-  title: 'System Overview',
-  description: 'Main dashboard for key metrics',
-  panels: [
-    {
-      type: LENS_EMBEDDABLE_TYPE,
-      id: 'panel-1',
-      grid: { x: 0, y: 0, w: 24, h: 15 },
-      config: {
-        attributes: {
-          title: 'CPU Usage',
-          visualizationType: 'lnsXY',
-          state: {
-            datasourceStates: {},
-            filters: [],
-            query: { language: 'kuery', query: '' },
-            visualization: {},
-          },
-          references: [],
-        },
-      },
-    },
-  ],
+type DashboardReadResult = Awaited<ReturnType<DashboardPluginStart['client']['read']>>;
+type DashboardAttachment = VersionedAttachmentWithOrigin<
+  typeof DASHBOARD_ATTACHMENT_TYPE,
+  DashboardAttachmentData
+>;
+
+const grid = { x: 0, y: 0, w: 24, h: 15 };
+
+const metricApiConfig = {
+  type: 'metric',
+  title: 'Request count',
+  data_source: { type: 'esql', query: 'FROM logs | STATS count = COUNT(*)' },
+  metrics: [{ type: 'primary', column: 'count' }],
+  sampling: 1,
+  ignore_global_filters: false,
 };
 
-const createDashboardClient = ({
-  updatedAt = '2025-01-02T00:00:00.000Z',
-}: {
-  updatedAt?: string;
-} = {}): jest.Mocked<DashboardPluginStart['client']> =>
+const lensPanel: AttachmentPanel = {
+  type: LENS_EMBEDDABLE_TYPE,
+  id: 'panel-1',
+  grid,
+  config: metricApiConfig,
+};
+
+const dashboardData = (
+  overrides: Partial<DashboardAttachmentData> = {}
+): DashboardAttachmentData => ({
+  title: 'System Overview',
+  description: 'Main dashboard for key metrics',
+  panels: [lensPanel],
+  ...overrides,
+});
+
+const readResult = (
+  data: DashboardReadResult['data'] = attachmentDataToDashboardState(dashboardData()),
+  meta: Partial<DashboardReadResult['meta']> = {}
+): DashboardReadResult =>
   ({
-    read: jest.fn().mockResolvedValue({
-      id: 'dashboard-1',
-      data: attachmentDataToDashboardState(dashboardAttachmentData),
-      meta: {
-        outcome: 'exactMatch',
-        updated_at: updatedAt,
-        version: 'v1',
-      },
-    }),
-  } as jest.Mocked<DashboardPluginStart['client']>);
+    id: 'dashboard-1',
+    data,
+    meta: { outcome: 'exactMatch', version: 'v1', updated_at: '2025-01-02T00:00:00.000Z', ...meta },
+  } as DashboardReadResult);
 
-const createLogger = (): Logger =>
-  ({
-    debug: jest.fn(),
-    warn: jest.fn(),
-  } as unknown as Logger);
+const withInternalLensAttributes = (): DashboardReadResult['data'] => {
+  const [storedPanel] = attachmentDataToDashboardState(dashboardData()).panels;
+  if (!('config' in storedPanel)) {
+    throw new Error('expected a Lens panel');
+  }
+  const { attributes } = storedPanel.config as { attributes: unknown };
+  return attachmentDataToDashboardState(
+    dashboardData({ panels: [{ ...lensPanel, config: { attributes } }] })
+  );
+};
 
-const createSavedObjectsClient = (): SavedObjectsClientContract =>
-  ({} as SavedObjectsClientContract);
-
-const createAttachment = (
-  data: DashboardAttachmentData
-): VersionedAttachmentWithOrigin<typeof DASHBOARD_ATTACHMENT_TYPE, DashboardAttachmentData> => ({
+const attachment = (
+  data: DashboardAttachmentData,
+  overrides: Partial<DashboardAttachment> = {}
+): DashboardAttachment => ({
   id: 'att-1',
   type: DASHBOARD_ATTACHMENT_TYPE,
   origin: 'dashboard-1',
@@ -89,134 +93,68 @@ const createAttachment = (
   current_version: 1,
   active: true,
   readonly: false,
+  ...overrides,
 });
 
+const setup = ({ read = jest.fn().mockResolvedValue(readResult()) } = {}) => {
+  const logger = loggingSystemMock.create().get();
+  const definition = createDashboardAttachmentType({
+    logger,
+    getDashboardClient: async () => ({ read } as unknown as DashboardPluginStart['client']),
+  });
+  const { resolve, isStale } = definition;
+  if (!resolve || !isStale) {
+    throw new Error('dashboard attachment type must define resolve and isStale');
+  }
+  const savedObjectsClient = savedObjectsClientMock.create();
+  const context = {
+    request: httpServerMock.createKibanaRequest(),
+    spaceId: 'default',
+    savedObjectsClient,
+  };
+  return { definition, resolve, isStale, context, logger, read, savedObjectsClient };
+};
+
 describe('createDashboardAttachmentType', () => {
-  it('resolve should return dashboard attachement', async () => {
-    const dashboardClient = createDashboardClient();
-    const savedObjectsClient = createSavedObjectsClient();
-    const definition = createDashboardAttachmentType({
-      logger: createLogger(),
-      getDashboardClient: async () => dashboardClient,
-    });
+  describe('resolve', () => {
+    it('reads the dashboard and converts Lens panels to API format', async () => {
+      const { resolve, context, read, savedObjectsClient } = setup({
+        read: jest.fn().mockResolvedValue(readResult(withInternalLensAttributes())),
+      });
 
-    const result = await definition.resolve?.('dashboard-1', {
-      request: {} as never,
-      spaceId: 'default',
-      savedObjectsClient,
-    });
+      const result = await resolve('dashboard-1', context);
 
-    expect(result).toEqual(
-      expect.objectContaining({
+      expect(read).toHaveBeenCalledWith(savedObjectsClient, 'dashboard-1');
+      expect(result).toMatchObject({
         title: 'System Overview',
         description: 'Main dashboard for key metrics',
-      })
-    );
-    expect(result?.panels).toHaveLength(1);
+        panels: [{ type: LENS_EMBEDDABLE_TYPE, id: 'panel-1', grid, config: metricApiConfig }],
+      });
+    });
   });
 
-  it('isStale should return true when the dashboard changed after the snapshot', async () => {
-    const dashboardClient = createDashboardClient();
-    const savedObjectsClient = createSavedObjectsClient();
-    const definition = createDashboardAttachmentType({
-      logger: createLogger(),
-      getDashboardClient: async () => dashboardClient,
+  describe('isStale', () => {
+    it('returns true when the dashboard changed after the snapshot', async () => {
+      const { isStale, context, logger } = setup();
+
+      expect(await isStale(attachment(dashboardData({ title: 'Old title' })), context)).toBe(true);
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    const isStale = await definition.isStale?.(
-      createAttachment({
-        title: 'Old title',
-        description: 'Main dashboard for key metrics',
-        panels: [],
-      }),
-      {
-        request: {} as never,
-        spaceId: 'default',
-        savedObjectsClient,
-      }
-    );
+    it('returns false when the dashboard data matches the attachment', async () => {
+      const { isStale, context, logger } = setup();
 
-    expect(isStale).toBe(true);
-  });
-
-  it('isStale should return false when the dashboard has not changed', async () => {
-    const dashboardClient = createDashboardClient();
-    const savedObjectsClient = createSavedObjectsClient();
-    const definition = createDashboardAttachmentType({
-      logger: createLogger(),
-      getDashboardClient: async () => dashboardClient,
-    });
-    const resolvedData = await definition.resolve?.('dashboard-1', {
-      request: {} as never,
-      spaceId: 'default',
-      savedObjectsClient,
+      expect(await isStale(attachment(dashboardData()), context)).toBe(false);
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    const isStale = await definition.isStale?.(createAttachment(resolvedData!), {
-      request: {} as never,
-      spaceId: 'default',
-      savedObjectsClient,
+    it('treats a dashboard Lens panel stored as internal attributes as equal to its API format', async () => {
+      const { isStale, context, logger } = setup({
+        read: jest.fn().mockResolvedValue(readResult(withInternalLensAttributes())),
+      });
+
+      expect(await isStale(attachment(dashboardData()), context)).toBe(false);
+      expect(logger.warn).not.toHaveBeenCalled();
     });
-
-    expect(isStale).toBe(false);
-  });
-
-  it('treats legacy wrapped Lens configs as equal when checking staleness', async () => {
-    const dashboardClient = {
-      read: jest.fn().mockResolvedValue({
-        id: 'dashboard-1',
-        data: {
-          title: 'System Overview',
-          description: 'Main dashboard for key metrics',
-          panels: [
-            {
-              type: LENS_EMBEDDABLE_TYPE,
-              id: 'panel-1',
-              grid: { x: 0, y: 0, w: 24, h: 15 },
-              config: {
-                type: 'lnsXY',
-                title: 'CPU Usage',
-              },
-            },
-          ],
-        },
-        meta: {
-          outcome: 'exactMatch',
-          updated_at: '2025-01-02T00:00:00.000Z',
-          version: 'v1',
-        },
-      }),
-    } as jest.Mocked<DashboardPluginStart['client']>;
-    const savedObjectsClient = createSavedObjectsClient();
-    const definition = createDashboardAttachmentType({
-      logger: createLogger(),
-      getDashboardClient: async () => dashboardClient,
-    });
-
-    const isStale = await definition.isStale?.(
-      createAttachment({
-        ...dashboardAttachmentData,
-        panels: [
-          {
-            type: LENS_EMBEDDABLE_TYPE,
-            id: 'panel-1',
-            grid: { x: 0, y: 0, w: 24, h: 15 },
-            config: {
-              title: 'CPU Usage',
-              attributes: {
-                type: 'lnsXY',
-              },
-            },
-          },
-        ],
-      }),
-      {
-        request: {} as never,
-        spaceId: 'default',
-        savedObjectsClient,
-      }
-    );
-
-    expect(isStale).toBe(false);
   });
 });
