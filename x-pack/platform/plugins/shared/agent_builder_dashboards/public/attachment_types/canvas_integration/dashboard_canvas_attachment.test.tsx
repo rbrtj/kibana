@@ -516,7 +516,7 @@ describe('DashboardCanvasAttachment', () => {
 
   it('keeps the origin when the interactive save is cancelled', async () => {
     const { mockApi, updateOrigin, clickButton } = await renderDashboardCanvasAttachment();
-    jest.mocked(mockApi.runInteractiveSave).mockResolvedValueOnce({});
+    jest.mocked(mockApi.runInteractiveSave).mockResolvedValueOnce(undefined);
 
     await clickButton('Save');
 
