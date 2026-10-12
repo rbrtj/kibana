@@ -6,44 +6,44 @@
  */
 
 import React from 'react';
-import { render, act, waitFor } from '@testing-library/react';
+import { act, waitFor, screen } from '@testing-library/react';
+import { renderWithKibanaRenderContext } from '@kbn/test-jest-helpers';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { dataPluginMock } from '@kbn/data-plugin/public/mocks';
 import type { DashboardApi } from '@kbn/dashboard-plugin/public';
 import { DashboardRenderer } from '@kbn/dashboard-plugin/public';
+import type { DataView } from '@kbn/data-views-plugin/common';
+import { ActionButtonType } from '@kbn/agent-builder-browser/attachments';
 import type { ActionButton } from '@kbn/agent-builder-browser/attachments';
 import type { DashboardAttachment } from '@kbn/agent-builder-dashboards-common/types';
 import type { Filter, Query, TimeRange } from '@kbn/es-query';
-import { renderWithKibanaRenderContext } from '@kbn/test-jest-helpers';
-import { DashboardCanvasAttachment } from './dashboard_canvas_attachment';
-import * as agentBuilderDashboardsCommon from '@kbn/agent-builder-dashboards-common';
 import { DASHBOARD_ATTACHMENT_TYPE } from '@kbn/agent-builder-dashboards-common';
+import { DashboardCanvasAttachment } from './dashboard_canvas_attachment';
+import type { DashboardCanvasAttachmentProps } from './dashboard_canvas_attachment';
+import type { useDashboardPreviewUnifiedSearch } from './use_dashboard_preview_unified_search';
 
 jest.mock('@kbn/dashboard-plugin/public', () => ({
-  DashboardRenderer: jest.fn(() => <div data-test-subj="dashboardRenderer" />),
+  DashboardRenderer: jest.fn(),
 }));
 
-jest.mock('@kbn/agent-builder-dashboards-common', () => {
-  const actual = jest.requireActual('@kbn/agent-builder-dashboards-common');
+type SearchBarProps = ReturnType<typeof useDashboardPreviewUnifiedSearch>['searchBarProps'];
 
-  return {
-    ...actual,
-    attachmentDataToDashboardState: jest.fn(actual.attachmentDataToDashboardState),
-  };
-});
+const MockSearchBar = jest.fn((_props: SearchBarProps) => <div data-test-subj="searchBar" />);
 
-const MockSearchBar = jest.fn(() => <div data-test-subj="searchBar" />);
+const PREVIEW_ERROR_TITLE = 'This dashboard preview could not be rendered.';
 
 describe('DashboardCanvasAttachment', () => {
+  type MockDashboardApi = DashboardApi & {
+    children$: BehaviorSubject<Record<string, unknown>>;
+    dataViews$: BehaviorSubject<DataView[]>;
+    isApproximate$: BehaviorSubject<boolean>;
+  };
+
   const createMockDashboardApi = (
     overrides: Partial<Pick<DashboardApi, 'isManaged' | 'isEditableByUser'>> = {}
-  ): DashboardApi & {
-    children$: BehaviorSubject<Record<string, unknown>>;
-    dataViews$: BehaviorSubject<any[]>;
-    isApproximate$: BehaviorSubject<boolean>;
-  } => {
+  ): MockDashboardApi => {
     const children$ = new BehaviorSubject<Record<string, unknown>>({});
-    const dataViews$ = new BehaviorSubject<any[]>([]);
+    const dataViews$ = new BehaviorSubject<DataView[]>([]);
     const filters$ = new BehaviorSubject<Filter[]>([]);
     const isApproximate$ = new BehaviorSubject(false);
     const query$ = new BehaviorSubject<Query | undefined>(undefined);
@@ -75,11 +75,7 @@ describe('DashboardCanvasAttachment', () => {
       }),
       timeRange$,
       ...overrides,
-    } as unknown as DashboardApi & {
-      children$: BehaviorSubject<Record<string, unknown>>;
-      dataViews$: BehaviorSubject<any[]>;
-      isApproximate$: BehaviorSubject<boolean>;
-    };
+    } as unknown as MockDashboardApi;
   };
 
   const createMockFilterManager = () => {
@@ -138,41 +134,33 @@ describe('DashboardCanvasAttachment', () => {
     },
   };
 
-  const defaultProps = {
-    attachment: mockAttachment,
-    conversationId: 'test-conversation-id',
-    isSidebar: false,
-    dashboardLocator: undefined,
-    searchBarComponent: MockSearchBar as any,
-  };
+  const withOrigin = (origin: string): DashboardAttachment => ({ ...mockAttachment, origin });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .mocked(DashboardRenderer)
+      .mockImplementation(() => <div data-test-subj="dashboardRenderer" />);
   });
 
-  const simulateDashboardApiAvailable = (mockApi: DashboardApi) => {
-    const mockDashboardRenderer = DashboardRenderer as jest.Mock;
-    const onApiAvailable = mockDashboardRenderer.mock.calls[0]?.[0]?.onApiAvailable;
-    if (onApiAvailable) {
-      act(() => {
-        onApiAvailable(mockApi);
-      });
+  const getSearchBarProps = (): SearchBarProps => {
+    const lastCall = MockSearchBar.mock.calls.at(-1);
+    if (!lastCall) {
+      throw new Error('SearchBar was not rendered');
     }
+    return lastCall[0];
   };
-
-  const getLatestSearchBarProps = (): Record<string, any> | undefined =>
-    (MockSearchBar as jest.Mock).mock.calls.at(-1)?.[0] as Record<string, any> | undefined;
-
-  type DashboardCanvasAttachmentProps = React.ComponentProps<typeof DashboardCanvasAttachment>;
 
   const renderDashboardCanvasAttachment = async (
     propsOverride: Partial<DashboardCanvasAttachmentProps> = {},
     {
       canWriteDashboards = true,
       mockApiOverrides = {},
+      waitForRenderer = true,
     }: {
       canWriteDashboards?: boolean;
       mockApiOverrides?: Partial<Pick<DashboardApi, 'isManaged' | 'isEditableByUser'>>;
+      waitForRenderer?: boolean;
     } = {}
   ) => {
     const registerActionButtons: jest.MockedFunction<
@@ -188,13 +176,16 @@ describe('DashboardCanvasAttachment', () => {
     > = jest.fn().mockResolvedValue(false);
     const mockFilterManager = createMockFilterManager();
     const mockTimefilter = createMockTimefilter();
-    const mockData = createMockData(mockFilterManager, mockTimefilter);
     const mockApi = createMockDashboardApi(mockApiOverrides);
     const openSidebarConversation = jest.fn();
 
     const props: DashboardCanvasAttachmentProps = {
-      ...defaultProps,
-      data: mockData,
+      attachment: mockAttachment,
+      isSidebar: false,
+      dashboardLocator: undefined,
+      searchBarComponent:
+        MockSearchBar as unknown as DashboardCanvasAttachmentProps['searchBarComponent'],
+      data: createMockData(mockFilterManager, mockTimefilter),
       registerActionButtons,
       updateOrigin,
       closeCanvas,
@@ -204,217 +195,123 @@ describe('DashboardCanvasAttachment', () => {
       ...propsOverride,
     };
 
-    const renderResult = render(<DashboardCanvasAttachment {...props} />);
+    renderWithKibanaRenderContext(<DashboardCanvasAttachment {...props} />);
 
-    // Wait for savedObjectStatus to resolve before DashboardRenderer is rendered
-    await waitFor(() => {
-      expect(DashboardRenderer).toHaveBeenCalled();
-    });
+    if (waitForRenderer) {
+      await waitFor(() => {
+        expect(DashboardRenderer).toHaveBeenCalled();
+      });
+      const { onApiAvailable } = jest.mocked(DashboardRenderer).mock.calls[0][0];
+      act(() => {
+        onApiAvailable?.(mockApi, {} as Parameters<NonNullable<typeof onApiAvailable>>[1]);
+      });
+    }
 
-    simulateDashboardApiAvailable(mockApi);
+    const getButton = (label: string): ActionButton => {
+      const button = registerActionButtons.mock.calls.at(-1)?.[0].find((b) => b.label === label);
+      if (!button) {
+        throw new Error(`No "${label}" action button registered`);
+      }
+      return button;
+    };
+
+    const clickButton = async (label: string) => {
+      await act(async () => {
+        await getButton(label).handler();
+      });
+    };
 
     return {
-      ...renderResult,
       props,
       mockApi,
       mockFilterManager,
       mockTimefilter,
       registerActionButtons,
-      updateOrigin,
+      updateOrigin: props.updateOrigin,
       closeCanvas,
-      checkSavedDashboardExist: props.checkSavedDashboardExist,
       openSidebarConversation,
+      clickButton,
     };
   };
 
-  it('renders the dashboard renderer and search bar', async () => {
-    const { container } = await renderDashboardCanvasAttachment();
-
-    expect(container.querySelector('[data-test-subj="dashboardRenderer"]')).not.toBeNull();
-    expect(container.querySelector('[data-test-subj="searchBar"]')).not.toBeNull();
-  });
-
-  it('registers action buttons when dashboard API becomes available', async () => {
+  it('registers enabled Edit and Save buttons once the dashboard API is available', async () => {
     const { registerActionButtons } = await renderDashboardCanvasAttachment();
 
-    expect(registerActionButtons).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ label: 'Edit in Dashboards' }),
-        expect.objectContaining({ label: 'Save' }),
-      ])
-    );
+    expect(registerActionButtons.mock.calls[0]).toEqual([[]]);
+    expect(registerActionButtons).toHaveBeenLastCalledWith([
+      {
+        label: 'Edit in Dashboards',
+        type: ActionButtonType.PRIMARY,
+        disabled: false,
+        disabledReason: undefined,
+        handler: expect.any(Function),
+      },
+      {
+        label: 'Save',
+        icon: 'save',
+        type: ActionButtonType.PRIMARY,
+        disabled: false,
+        disabledReason: undefined,
+        handler: expect.any(Function),
+      },
+    ]);
   });
 
-  it('registers disabled action buttons with an explanation when dashboard write access is unavailable', async () => {
-    const { registerActionButtons } = await renderDashboardCanvasAttachment(
+  it.each([
+    [
+      'dashboard write access is unavailable',
       {},
-      { canWriteDashboards: false }
-    );
+      { canWriteDashboards: false },
+      'You need dashboard write permissions to edit or save dashboards.',
+    ],
+    [
+      'the linked dashboard is managed',
+      { attachment: withOrigin('managed-dashboard-id') },
+      { mockApiOverrides: { isManaged: true } },
+      'Managed dashboards are read-only.',
+    ],
+    [
+      'the linked dashboard is read-only',
+      { attachment: withOrigin('read-only-dashboard-id') },
+      { mockApiOverrides: { isEditableByUser: false } },
+      'You do not have permission to edit this dashboard.',
+    ],
+  ])(
+    'disables Edit and Save and makes them no-ops when %s',
+    async (_, propsOverride, options, disabledReason) => {
+      const {
+        registerActionButtons,
+        mockApi,
+        updateOrigin,
+        closeCanvas,
+        openSidebarConversation,
+        clickButton,
+      } = await renderDashboardCanvasAttachment(
+        { ...propsOverride, checkSavedDashboardExist: jest.fn().mockResolvedValue(true) },
+        options
+      );
 
-    expect(registerActionButtons).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          label: 'Edit in Dashboards',
-          disabled: true,
-          disabledReason: 'You need dashboard write permissions to edit or save dashboards.',
-        }),
-        expect.objectContaining({
-          label: 'Save',
-          disabled: true,
-          disabledReason: 'You need dashboard write permissions to edit or save dashboards.',
-        }),
-      ])
-    );
-  });
+      expect(registerActionButtons).toHaveBeenLastCalledWith([
+        expect.objectContaining({ label: 'Edit in Dashboards', disabled: true, disabledReason }),
+        expect.objectContaining({ label: 'Save', disabled: true, disabledReason }),
+      ]);
 
-  it('registers disabled action buttons for managed dashboards', async () => {
-    const attachmentWithOrigin: DashboardAttachment = {
-      ...mockAttachment,
-      origin: 'managed-dashboard-id',
-    };
-
-    const { registerActionButtons } = await renderDashboardCanvasAttachment(
-      {
-        attachment: attachmentWithOrigin,
-        checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-      },
-      { mockApiOverrides: { isManaged: true } }
-    );
-
-    expect(registerActionButtons).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          label: 'Edit in Dashboards',
-          disabled: true,
-          disabledReason: 'Managed dashboards are read-only.',
-        }),
-        expect.objectContaining({
-          label: 'Save',
-          disabled: true,
-          disabledReason: 'Managed dashboards are read-only.',
-        }),
-      ])
-    );
-  });
-
-  it('registers disabled action buttons for read-only linked dashboards', async () => {
-    const attachmentWithOrigin: DashboardAttachment = {
-      ...mockAttachment,
-      origin: 'read-only-dashboard-id',
-    };
-
-    const { registerActionButtons } = await renderDashboardCanvasAttachment(
-      {
-        attachment: attachmentWithOrigin,
-        checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-      },
-      { mockApiOverrides: { isEditableByUser: false } }
-    );
-
-    expect(registerActionButtons).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          label: 'Edit in Dashboards',
-          disabled: true,
-          disabledReason: 'You do not have permission to edit this dashboard.',
-        }),
-        expect.objectContaining({
-          label: 'Save',
-          disabled: true,
-          disabledReason: 'You do not have permission to edit this dashboard.',
-        }),
-      ])
-    );
-  });
-
-  describe('Edit in Dashboards disabled states', () => {
-    it('should not navigate for managed dashboards', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'managed-dashboard-id',
-      };
-      const { registerActionButtons, mockApi, closeCanvas, openSidebarConversation } =
-        await renderDashboardCanvasAttachment(
-          {
-            attachment: attachmentWithOrigin,
-            checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-          },
-          { mockApiOverrides: { isManaged: true } }
-        );
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
+      await clickButton('Edit in Dashboards');
+      await clickButton('Save');
 
       expect(mockApi.locator?.navigate).not.toHaveBeenCalled();
       expect(closeCanvas).not.toHaveBeenCalled();
       expect(openSidebarConversation).not.toHaveBeenCalled();
-    });
-
-    it('should not navigate for read-only linked dashboards', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'read-only-dashboard-id',
-      };
-      const { registerActionButtons, mockApi, closeCanvas, openSidebarConversation } =
-        await renderDashboardCanvasAttachment(
-          {
-            attachment: attachmentWithOrigin,
-            checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-          },
-          { mockApiOverrides: { isEditableByUser: false } }
-        );
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
-
-      expect(mockApi.locator?.navigate).not.toHaveBeenCalled();
-      expect(closeCanvas).not.toHaveBeenCalled();
-      expect(openSidebarConversation).not.toHaveBeenCalled();
-    });
-
-    it('should not navigate when dashboard write access is unavailable', async () => {
-      const { registerActionButtons, mockApi, closeCanvas, openSidebarConversation } =
-        await renderDashboardCanvasAttachment({}, { canWriteDashboards: false });
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
-
-      expect(mockApi.locator?.navigate).not.toHaveBeenCalled();
-      expect(closeCanvas).not.toHaveBeenCalled();
-      expect(openSidebarConversation).not.toHaveBeenCalled();
-    });
-  });
-
-  it('enables query input and filter pills for preview search', async () => {
-    await renderDashboardCanvasAttachment();
-
-    expect(getLatestSearchBarProps()).toEqual(
-      expect.objectContaining({
-        showQueryInput: true,
-        showFilterBar: true,
-        showDatePicker: true,
-        showQueryMenu: false,
-        useDefaultBehaviors: false,
-      })
-    );
-  });
+      expect(mockApi.runQuickSave).not.toHaveBeenCalled();
+      expect(mockApi.runInteractiveSave).not.toHaveBeenCalled();
+      expect(updateOrigin).not.toHaveBeenCalled();
+    }
+  );
 
   it('configures Fast mode for the dashboard preview', async () => {
     const { mockApi } = await renderDashboardCanvasAttachment();
 
-    expect(getLatestSearchBarProps()?.esqlApproximation).toEqual(
+    expect(getSearchBarProps().esqlApproximation).toEqual(
       expect.objectContaining({
         isApproximate: false,
         disabled: true,
@@ -431,137 +328,105 @@ describe('DashboardCanvasAttachment', () => {
     });
 
     await waitFor(() => {
-      expect(getLatestSearchBarProps()?.esqlApproximation).toEqual(
+      expect(getSearchBarProps().esqlApproximation).toEqual(
         expect.objectContaining({ disabled: false })
       );
     });
 
     act(() => {
-      getLatestSearchBarProps()?.esqlApproximation.onChange(true);
+      getSearchBarProps().esqlApproximation.onChange(true);
     });
 
     expect(mockApi.setEsqlApproximation).toHaveBeenCalledWith(true);
-    expect(getLatestSearchBarProps()?.esqlApproximation).toEqual(
+    expect(getSearchBarProps().esqlApproximation).toEqual(
       expect.objectContaining({ isApproximate: true })
     );
   });
 
-  it('updates dashboard query and time range from the preview search bar', async () => {
-    const { mockApi } = await renderDashboardCanvasAttachment();
+  it.each<[string, Query, Query]>([
+    [
+      'a KQL query',
+      { query: 'host.name: "web-01"', language: 'kuery' },
+      { query: 'host.name: "web-01"', language: 'kuery' },
+    ],
+    ['a blank query', { query: '   ', language: 'kuery' }, { query: '', language: 'kuery' }],
+    [
+      'a non-string query payload',
+      { query: { bool: { filter: [{ term: { 'host.name': 'web-01' } }] } }, language: 'kuery' },
+      { query: { bool: { filter: [{ term: { 'host.name': 'web-01' } }] } }, language: 'kuery' },
+    ],
+  ])(
+    'applies %s and the time range from the preview search bar',
+    async (_, submittedQuery, expectedQuery) => {
+      const { mockApi } = await renderDashboardCanvasAttachment();
 
-    act(() => {
-      getLatestSearchBarProps()?.onQuerySubmit({
-        dateRange: { from: 'now-1h', to: 'now' },
-        query: { query: 'host.name: "web-01"', language: 'kuery' },
+      act(() => {
+        getSearchBarProps().onQuerySubmit({
+          dateRange: { from: 'now-2h', to: 'now' },
+          query: { query: 'previous', language: 'kuery' },
+        });
       });
-    });
-
-    expect(mockApi.setQuery).toHaveBeenCalledWith({
-      query: 'host.name: "web-01"',
-      language: 'kuery',
-    });
-    expect(mockApi.setTimeRange).toHaveBeenCalledWith({ from: 'now-1h', to: 'now' });
-    expect(mockApi.forceRefresh).toHaveBeenCalled();
-  });
-
-  it('clears the dashboard query when the preview query input is submitted empty', async () => {
-    const { mockApi } = await renderDashboardCanvasAttachment();
-
-    act(() => {
-      getLatestSearchBarProps()?.onQuerySubmit({
-        dateRange: { from: 'now-1h', to: 'now' },
-        query: { query: '   ', language: 'kuery' },
+      act(() => {
+        getSearchBarProps().onQuerySubmit({
+          dateRange: { from: 'now-1h', to: 'now' },
+          query: submittedQuery,
+        });
       });
-    });
 
-    expect(mockApi.setQuery).toHaveBeenCalledWith({ query: '', language: 'kuery' });
-    expect(mockApi.forceRefresh).toHaveBeenCalled();
-  });
-
-  it('preserves non-string query payloads when submitted', async () => {
-    const { mockApi } = await renderDashboardCanvasAttachment();
-    const queryDsl = {
-      query: { bool: { filter: [{ term: { 'host.name': 'web-01' } }] } },
-      language: 'kuery',
-    } as Query;
-
-    act(() => {
-      getLatestSearchBarProps()?.onQuerySubmit({
-        dateRange: { from: 'now-1h', to: 'now' },
-        query: queryDsl,
-      });
-    });
-
-    expect(mockApi.setQuery).toHaveBeenCalledWith(queryDsl);
-    expect(mockApi.forceRefresh).toHaveBeenCalled();
-  });
+      expect(mockApi.setQuery).toHaveBeenLastCalledWith(expectedQuery);
+      expect(mockApi.setTimeRange).toHaveBeenLastCalledWith({ from: 'now-1h', to: 'now' });
+      expect(mockApi.forceRefresh).toHaveBeenCalledTimes(2);
+    }
+  );
 
   it('updates dashboard filters from the preview filter bar', async () => {
     const { mockApi, mockFilterManager } = await renderDashboardCanvasAttachment();
     const nextFilters = [{ meta: { key: 'host.name' } }] as Filter[];
 
-    (mockApi.setFilters as jest.MockedFunction<typeof mockApi.setFilters>).mockClear();
     act(() => {
-      getLatestSearchBarProps()?.onFiltersUpdated(nextFilters);
+      getSearchBarProps().onFiltersUpdated(nextFilters);
     });
 
     expect(mockFilterManager.setFilters).toHaveBeenCalledWith(nextFilters);
-    expect(mockApi.setFilters).toHaveBeenCalledWith(nextFilters);
-    expect(mockApi.setFilters).toHaveBeenCalledTimes(1);
+    expect(mockApi.setFilters).toHaveBeenLastCalledWith(nextFilters);
+    expect(getSearchBarProps().filters).toEqual(nextFilters);
   });
 
   it('updates query bar index patterns when dashboard data views are published', async () => {
     const { mockApi } = await renderDashboardCanvasAttachment();
-    const nextDataViews = [{ id: 'logs-*', title: 'logs-*' }];
+    const nextDataViews = [{ id: 'logs-*', title: 'logs-*' }] as DataView[];
 
-    expect(getLatestSearchBarProps()).toEqual(
-      expect.objectContaining({
-        indexPatterns: [],
-      })
-    );
+    expect(getSearchBarProps().indexPatterns).toEqual([]);
 
     act(() => {
-      mockApi.dataViews$.next(nextDataViews as any);
+      mockApi.dataViews$.next(nextDataViews);
     });
 
-    expect(getLatestSearchBarProps()).toEqual(
-      expect.objectContaining({
-        indexPatterns: nextDataViews,
-      })
-    );
+    expect(getSearchBarProps().indexPatterns).toEqual(nextDataViews);
   });
 
   it('updates the preview filter pills when filters are created through the filter manager API', async () => {
     const { mockApi, mockFilterManager } = await renderDashboardCanvasAttachment();
     const nextFilters = [{ meta: { key: 'extension' } }] as Filter[];
-    const setFiltersMock = mockApi.setFilters as jest.Mock;
 
-    setFiltersMock.mockClear();
     act(() => {
       mockFilterManager.emitFilters(nextFilters);
     });
 
-    expect(mockApi.setFilters).toHaveBeenCalledWith(nextFilters);
-    expect(mockApi.setFilters).toHaveBeenCalledTimes(1);
-    expect(getLatestSearchBarProps()).toEqual(
-      expect.objectContaining({
-        filters: nextFilters,
-      })
-    );
+    expect(mockApi.setFilters).toHaveBeenLastCalledWith(nextFilters);
+    expect(getSearchBarProps().filters).toEqual(nextFilters);
   });
 
   it('updates the preview time range when timefilter emits (e.g. chart brush)', async () => {
     const { mockApi, mockTimefilter } = await renderDashboardCanvasAttachment();
     const nextTimeRange = { from: '2026-04-01T00:00:00Z', to: '2026-04-02T00:00:00Z' };
-    const setTimeRangeMock = mockApi.setTimeRange as jest.Mock;
 
-    setTimeRangeMock.mockClear();
     act(() => {
       mockTimefilter.emitTime(nextTimeRange);
     });
 
-    expect(mockApi.setTimeRange).toHaveBeenCalledWith(nextTimeRange);
-    expect(getLatestSearchBarProps()).toEqual(
+    expect(mockApi.setTimeRange).toHaveBeenLastCalledWith(nextTimeRange);
+    expect(getSearchBarProps()).toEqual(
       expect.objectContaining({
         dateRangeFrom: nextTimeRange.from,
         dateRangeTo: nextTimeRange.to,
@@ -573,380 +438,108 @@ describe('DashboardCanvasAttachment', () => {
     const { mockApi } = await renderDashboardCanvasAttachment();
 
     act(() => {
-      getLatestSearchBarProps()?.onRefresh();
+      getSearchBarProps().onRefresh();
     });
 
-    expect(mockApi.forceRefresh).toHaveBeenCalled();
+    expect(mockApi.forceRefresh).toHaveBeenCalledTimes(1);
   });
 
-  describe('Edit in Dashboards button', () => {
-    it('should call closeCanvas and openSidebarConversation', async () => {
-      const { registerActionButtons, closeCanvas, openSidebarConversation, mockApi } =
-        await renderDashboardCanvasAttachment();
+  it('opens the live preview state in Dashboards and hands the conversation to the sidebar', async () => {
+    const { mockApi, closeCanvas, openSidebarConversation, clickButton } =
+      await renderDashboardCanvasAttachment();
+    const nextFilters = [{ meta: { key: 'host.name' } }] as Filter[];
 
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
+    act(() => {
+      getSearchBarProps().onFiltersUpdated(nextFilters);
+      getSearchBarProps().onQuerySubmit({
+        dateRange: { from: 'now-1h', to: 'now' },
+        query: { query: 'host.name: "web-01"', language: 'kuery' },
       });
-
-      expect(mockApi.locator?.navigate).toHaveBeenCalled();
-      expect(closeCanvas).toHaveBeenCalled();
-      expect(openSidebarConversation).toHaveBeenCalled();
     });
 
-    it('should navigate with correct dashboard state and time range', async () => {
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment();
+    await clickButton('Edit in Dashboards');
 
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
-
-      expect(mockApi.locator?.navigate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          viewMode: 'edit',
-          title: 'Test Dashboard',
-          description: 'Test Description',
-        })
-      );
-    });
-
-    it('should carry the live preview query, filters, and time range into dashboard navigation', async () => {
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment();
-      const nextFilters = [{ meta: { key: 'host.name' } }] as Filter[];
-
-      act(() => {
-        getLatestSearchBarProps()?.onFiltersUpdated(nextFilters);
-        getLatestSearchBarProps()?.onQuerySubmit({
-          dateRange: { from: 'now-1h', to: 'now' },
-          query: { query: 'host.name: "web-01"', language: 'kuery' },
-        });
-      });
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
-
-      expect(mockApi.locator?.navigate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          filters: nextFilters,
-          query: { query: 'host.name: "web-01"', language: 'kuery' },
-          time_range: { from: 'now-1h', to: 'now' },
-        })
-      );
-    });
-
-    it('should include existing dashboard ID when saved object exists', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'existing-dashboard-id',
-      };
-
-      const { registerActionButtons, mockApi, checkSavedDashboardExist } =
-        await renderDashboardCanvasAttachment({
-          attachment: attachmentWithOrigin,
-          checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-        });
-
-      expect(checkSavedDashboardExist).toHaveBeenCalledWith('existing-dashboard-id');
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
-
-      expect(mockApi.locator?.navigate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          dashboardId: 'existing-dashboard-id',
-        })
-      );
-    });
-
-    it('should not include dashboard ID when the linked saved object does not exist', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'deleted-dashboard-id',
-      };
-
-      const { registerActionButtons, mockApi, checkSavedDashboardExist } =
-        await renderDashboardCanvasAttachment({
-          attachment: attachmentWithOrigin,
-          checkSavedDashboardExist: jest.fn().mockResolvedValue(false),
-        });
-
-      expect(checkSavedDashboardExist).toHaveBeenCalledWith('deleted-dashboard-id');
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const editButton = buttons.find((b) => b.label === 'Edit in Dashboards');
-
-      await act(async () => {
-        await editButton?.handler();
-      });
-
-      expect(mockApi.locator?.navigate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          dashboardId: undefined,
-        })
-      );
-    });
+    expect(mockApi.locator?.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Test Dashboard',
+        description: 'Test Description',
+        panels: [],
+        filters: nextFilters,
+        query: { query: 'host.name: "web-01"', language: 'kuery' },
+        time_range: { from: 'now-1h', to: 'now' },
+        dashboardId: undefined,
+        viewMode: 'edit',
+      })
+    );
+    expect(closeCanvas).toHaveBeenCalledTimes(1);
+    expect(openSidebarConversation).toHaveBeenCalledTimes(1);
   });
 
-  describe('Save button', () => {
-    it('should not run save handlers for managed dashboards', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'managed-dashboard-id',
-      };
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment(
-        {
-          attachment: attachmentWithOrigin,
-          updateOrigin,
-          checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-        },
-        { mockApiOverrides: { isManaged: true } }
-      );
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const saveButton = buttons.find((b) => b.label === 'Save');
-
-      await act(async () => {
-        await saveButton?.handler();
+  it.each([
+    ['exists', true, 'linked-dashboard-id', 'runQuickSave', 'linked-dashboard-id'],
+    ['no longer exists', false, undefined, 'runInteractiveSave', 'new-dashboard-id'],
+  ] as const)(
+    'targets the linked dashboard only when it %s',
+    async (_, exists, linkedId, saveMethod, savedOrigin) => {
+      const { mockApi, updateOrigin, clickButton } = await renderDashboardCanvasAttachment({
+        attachment: withOrigin('linked-dashboard-id'),
+        checkSavedDashboardExist: jest.fn().mockResolvedValue(exists),
       });
 
-      expect(mockApi.runQuickSave).not.toHaveBeenCalled();
-      expect(mockApi.runInteractiveSave).not.toHaveBeenCalled();
-      expect(updateOrigin).not.toHaveBeenCalled();
-    });
-
-    it('should not run save handlers for read-only linked dashboards', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'read-only-dashboard-id',
-      };
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment(
-        {
-          attachment: attachmentWithOrigin,
-          updateOrigin,
-          checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-        },
-        { mockApiOverrides: { isEditableByUser: false } }
-      );
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const saveButton = buttons.find((b) => b.label === 'Save');
-
-      await act(async () => {
-        await saveButton?.handler();
-      });
-
-      expect(mockApi.runQuickSave).not.toHaveBeenCalled();
-      expect(mockApi.runInteractiveSave).not.toHaveBeenCalled();
-      expect(updateOrigin).not.toHaveBeenCalled();
-    });
-
-    it('should not run save handlers when dashboard write access is unavailable', async () => {
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment(
-        {
-          updateOrigin,
-        },
-        { canWriteDashboards: false }
-      );
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const saveButton = buttons.find((b) => b.label === 'Save');
-
-      await act(async () => {
-        await saveButton?.handler();
-      });
-
-      expect(mockApi.runQuickSave).not.toHaveBeenCalled();
-      expect(mockApi.runInteractiveSave).not.toHaveBeenCalled();
-      expect(updateOrigin).not.toHaveBeenCalled();
-    });
-
-    it('should run quick save when linked saved object exists', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'existing-dashboard-id',
-      };
-
-      const { registerActionButtons, mockApi, updateOrigin } =
-        await renderDashboardCanvasAttachment({
-          attachment: attachmentWithOrigin,
-          checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-        });
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const saveButton = buttons.find((b) => b.label === 'Save');
-
-      await act(async () => {
-        await saveButton?.handler();
-      });
-
-      expect(mockApi.runQuickSave).toHaveBeenCalled();
-      expect(updateOrigin).toHaveBeenCalledWith('existing-dashboard-id');
-      expect(mockApi.runInteractiveSave).not.toHaveBeenCalled();
-    });
-
-    it('should run interactive save when linked saved object no longer exists', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'deleted-dashboard-id',
-      };
-
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment({
-        attachment: attachmentWithOrigin,
-        updateOrigin,
-        checkSavedDashboardExist: jest.fn().mockResolvedValue(false),
-      });
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const saveButton = buttons.find((b) => b.label === 'Save');
-
-      await act(async () => {
-        await saveButton?.handler();
-      });
-
-      expect(mockApi.runQuickSave).not.toHaveBeenCalled();
-      expect(mockApi.runInteractiveSave).toHaveBeenCalled();
-      expect(updateOrigin).toHaveBeenCalledWith('new-dashboard-id');
-    });
-
-    it('should run interactive save and update origin for new dashboard', async () => {
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const { registerActionButtons, mockApi } = await renderDashboardCanvasAttachment({
-        updateOrigin,
-      });
-
-      const buttons: ActionButton[] = registerActionButtons.mock.calls.at(-1)?.[0] ?? [];
-      const saveButton = buttons.find((b) => b.label === 'Save');
-
-      await act(async () => {
-        await saveButton?.handler();
-      });
-
-      expect(mockApi.runInteractiveSave).toHaveBeenCalled();
-      expect(updateOrigin).toHaveBeenCalledWith('new-dashboard-id');
-    });
-  });
-
-  describe('DashboardRenderer', () => {
-    it('passes the existing saved object id when the linked dashboard exists', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'existing-dashboard-id',
-      };
-
-      await renderDashboardCanvasAttachment({
-        attachment: attachmentWithOrigin,
-        checkSavedDashboardExist: jest.fn().mockResolvedValue(true),
-      });
-
-      expect(DashboardRenderer).toHaveBeenCalledWith(
-        expect.objectContaining({
-          savedObjectId: 'existing-dashboard-id',
-        }),
+      expect(DashboardRenderer).toHaveBeenLastCalledWith(
+        expect.objectContaining({ savedObjectId: linkedId }),
         {}
       );
-    });
 
-    it('renders by value when the linked dashboard does not exist', async () => {
-      const attachmentWithOrigin: DashboardAttachment = {
-        ...mockAttachment,
-        origin: 'deleted-dashboard-id',
-      };
-
-      await renderDashboardCanvasAttachment({
-        attachment: attachmentWithOrigin,
-        checkSavedDashboardExist: jest.fn().mockResolvedValue(false),
-      });
-
-      expect(DashboardRenderer).toHaveBeenCalledWith(
-        expect.objectContaining({
-          savedObjectId: undefined,
-        }),
-        {}
+      await clickButton('Edit in Dashboards');
+      expect(mockApi.locator?.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({ dashboardId: linkedId })
       );
-    });
 
+      await clickButton('Save');
+      const otherSaveMethod = saveMethod === 'runQuickSave' ? 'runInteractiveSave' : 'runQuickSave';
+      expect(mockApi[saveMethod]).toHaveBeenCalledTimes(1);
+      expect(mockApi[otherSaveMethod]).not.toHaveBeenCalled();
+      expect(updateOrigin).toHaveBeenCalledWith(savedOrigin);
+    }
+  );
+
+  it('runs interactive save and updates origin for a new dashboard', async () => {
+    const { mockApi, updateOrigin, clickButton } = await renderDashboardCanvasAttachment();
+
+    await clickButton('Save');
+
+    expect(mockApi.runInteractiveSave).toHaveBeenCalledTimes(1);
+    expect(mockApi.runQuickSave).not.toHaveBeenCalled();
+    expect(updateOrigin).toHaveBeenCalledWith('new-dashboard-id');
+  });
+
+  describe('error fallback', () => {
     it('renders a fallback callout when the dashboard renderer throws', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      (DashboardRenderer as jest.Mock).mockImplementation(() => {
+      jest.mocked(DashboardRenderer).mockImplementation(() => {
         throw new Error('invalid dashboard state');
       });
 
-      const registerActionButtons = jest.fn();
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const closeCanvas = jest.fn();
-      const checkSavedDashboardExist = jest.fn().mockResolvedValue(false);
-      const filterManager = createMockFilterManager();
-      const timefilter = createMockTimefilter();
-      const data = createMockData(filterManager, timefilter);
+      await renderDashboardCanvasAttachment({}, { waitForRenderer: false });
 
-      const { container } = renderWithKibanaRenderContext(
-        <DashboardCanvasAttachment
-          {...defaultProps}
-          data={data}
-          registerActionButtons={registerActionButtons}
-          updateOrigin={updateOrigin}
-          closeCanvas={closeCanvas}
-          checkSavedDashboardExist={checkSavedDashboardExist}
-          openSidebarConversation={jest.fn()}
-          canWriteDashboards
-        />
-      );
-
-      await waitFor(() => {
-        expect(container.querySelector('[data-test-subj="dashboardRendererError"]')).not.toBeNull();
-      });
-
+      expect(await screen.findByText(PREVIEW_ERROR_TITLE)).toBeInTheDocument();
       consoleErrorSpy.mockRestore();
     });
 
     it('renders a fallback callout when dashboard state conversion fails', async () => {
-      const attachmentDataToDashboardStateMock = jest.mocked(
-        agentBuilderDashboardsCommon.attachmentDataToDashboardState
-      );
-      attachmentDataToDashboardStateMock.mockImplementation(() => {
-        throw new Error('unsupported chart type');
-      });
-
-      const registerActionButtons = jest.fn();
-      const updateOrigin = jest.fn().mockResolvedValue(undefined);
-      const closeCanvas = jest.fn();
-      const checkSavedDashboardExist = jest.fn().mockResolvedValue(false);
-      const filterManager = createMockFilterManager();
-      const timefilter = createMockTimefilter();
-      const data = createMockData(filterManager, timefilter);
-
-      const { container } = renderWithKibanaRenderContext(
-        <DashboardCanvasAttachment
-          {...defaultProps}
-          data={data}
-          registerActionButtons={registerActionButtons}
-          updateOrigin={updateOrigin}
-          closeCanvas={closeCanvas}
-          checkSavedDashboardExist={checkSavedDashboardExist}
-          openSidebarConversation={jest.fn()}
-          canWriteDashboards
-        />
+      const sectionWithoutGrid = { id: 'section-1', title: 'Section', panels: [] };
+      await renderDashboardCanvasAttachment(
+        {
+          attachment: {
+            ...mockAttachment,
+            data: { title: 'Broken', panels: [sectionWithoutGrid] },
+          } as unknown as DashboardAttachment,
+        },
+        { waitForRenderer: false }
       );
 
-      await waitFor(() => {
-        expect(container.querySelector('[data-test-subj="dashboardRendererError"]')).not.toBeNull();
-      });
-
+      expect(screen.getByText(PREVIEW_ERROR_TITLE)).toBeInTheDocument();
       expect(DashboardRenderer).not.toHaveBeenCalled();
     });
   });
