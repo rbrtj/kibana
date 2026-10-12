@@ -146,4 +146,21 @@ describe('applyDefaultDashboardTimeRange', () => {
     expect(result.time_range).toBeUndefined();
     expect(search).not.toHaveBeenCalled();
   });
+
+  it('passes the dashboard project_routing to the probe search', async () => {
+    const { esClient, search, logger } = setup();
+    search.mockResolvedValue(minMaxResponse(NOW - 5 * DAY_MS, NOW));
+
+    const result = await applyDefaultDashboardTimeRange({
+      dashboardData: dashboard([esqlPanel('p1', Q_TIME_BOUND)], { project_routing: '_alias:*' }),
+      esClient,
+      logger,
+      nowMs: NOW,
+    });
+
+    expect(result.time_range).toEqual({ from: 'now-24h', to: 'now', mode: 'relative' });
+    expect(search).toHaveBeenCalledWith(
+      expect.objectContaining({ index: 'logs-*', project_routing: '_alias:*' })
+    );
+  });
 });

@@ -62,4 +62,25 @@ describe('extractEsqlQueries', () => {
   it('returns an empty array when there are no Lens panels', () => {
     expect(extractEsqlQueries([markdownPanel('md')])).toEqual([]);
   });
+
+  it('skips non-ES|QL data sources, empty queries and non-Lens panels inside sections', () => {
+    const section: DashboardSection = {
+      id: 'sec',
+      title: 'Section',
+      collapsed: false,
+      grid: { y: 0 },
+      panels: [
+        { ...esqlPanel('vega', 'FROM vega-*'), type: 'vega' },
+        esqlPanel('s1', 'FROM traces-*'),
+      ],
+    };
+
+    const queries = extractEsqlQueries([
+      lensPanel('data-view', { type: 'metric', data_source: { type: 'dataView', id: 'logs' } }),
+      esqlPanel('empty', ''),
+      section,
+    ]);
+
+    expect(queries).toEqual(['FROM traces-*']);
+  });
 });
