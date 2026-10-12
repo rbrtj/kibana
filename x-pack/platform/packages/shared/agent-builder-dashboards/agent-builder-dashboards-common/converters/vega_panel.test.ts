@@ -68,6 +68,24 @@ describe('Vega dashboard panel conversion (temporary legacy-vis bridge)', () => 
     }
   );
 
+  it('from_attachment uses an empty spec and title when they are not strings', () => {
+    const state = attachmentDataToDashboardState({
+      title: 'Dash',
+      panels: [
+        { type: VEGA_VIS_TYPE, id: 'p1', grid, config: { spec: 42, title: 7, hide_title: true } },
+      ],
+    });
+
+    expect(state.panels).toEqual([
+      {
+        type: VISUALIZE_EMBEDDABLE_TYPE,
+        id: 'p1',
+        grid,
+        config: { hide_title: true, savedVis: savedVis('', '', '') },
+      },
+    ]);
+  });
+
   it('to_attachment normalizes a by-value legacy-vis Vega panel to the `vega` API shape, re-indenting a compact spec', () => {
     const state = dashboardState([
       {

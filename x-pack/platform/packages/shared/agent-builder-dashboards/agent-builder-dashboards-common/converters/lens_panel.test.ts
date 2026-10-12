@@ -71,6 +71,35 @@ describe('Lens dashboard panel conversion — panel-level settings', () => {
     ]);
   });
 
+  it('to_attachment keeps Lens attributes unchanged when they cannot be converted to API format', () => {
+    const brokenAttributes = {
+      title: 'Broken',
+      visualizationType: 'lnsMetric',
+      references: [],
+      state: {},
+    };
+    const state = dashboardState([
+      { type: LENS_EMBEDDABLE_TYPE, id: 'p1', grid, config: { attributes: brokenAttributes } },
+    ]);
+
+    expect(dashboardStateToAttachmentData(state).panels).toEqual([
+      { type: LENS_EMBEDDABLE_TYPE, id: 'p1', grid, config: { attributes: brokenAttributes } },
+    ]);
+  });
+
+  it('from_attachment passes a Lens panel that is not in API format through unchanged', () => {
+    const attachmentPanel = {
+      type: LENS_EMBEDDABLE_TYPE,
+      id: 'p1',
+      grid,
+      config: { title: 'Saved chart', attributes: buildLensAttributes() },
+    };
+
+    const state = attachmentDataToDashboardState({ title: 'Dash', panels: [attachmentPanel] });
+
+    expect(state.panels).toEqual([attachmentPanel]);
+  });
+
   it('round-trips panel-level settings through dashboard state', () => {
     const attachmentPanel = {
       type: LENS_EMBEDDABLE_TYPE,
