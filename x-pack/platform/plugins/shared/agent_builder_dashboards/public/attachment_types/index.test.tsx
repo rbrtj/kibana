@@ -38,6 +38,8 @@ const flushAsyncServices = async () => {
   await Promise.resolve();
 };
 
+const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const createMockDashboardApi = (savedObjectId?: string) => ({
   anyStateChange$: EMPTY,
   savedObjectId$: new BehaviorSubject<string | undefined>(savedObjectId),
@@ -52,7 +54,11 @@ type MockDashboardApi = ReturnType<typeof createMockDashboardApi>;
 
 const createHarness = ({
   dashboardAppClientApi$ = new Subject<DashboardApi | undefined>(),
-}: { dashboardAppClientApi$?: Subject<DashboardApi | undefined> } = {}) => {
+  findByIdStatus = 'success',
+}: {
+  dashboardAppClientApi$?: Subject<DashboardApi | undefined>;
+  findByIdStatus?: string;
+} = {}) => {
   const agentBuilderMock = createAgentBuilderMock();
   const currentAppId$ = new BehaviorSubject<string | null>('agentBuilder');
   const draftAttachmentId = createIdGenerator();
@@ -67,7 +73,7 @@ const createHarness = ({
     dashboardPlugin: {
       dashboardAppClientApi$,
       findDashboardsService: jest.fn().mockResolvedValue({
-        findById: jest.fn().mockResolvedValue({ status: 'success' }),
+        findById: jest.fn().mockResolvedValue({ status: findByIdStatus }),
       }),
     } as unknown as DashboardStart,
     unifiedSearch: { ui: { SearchBar: jest.fn() } } as unknown as UnifiedSearchPublicPluginStart,
@@ -164,6 +170,24 @@ describe('registerDashboardAttachmentUiDefinition', () => {
     await flushAsyncServices();
 
     expect(updateOrigin).toHaveBeenCalledWith('new-dashboard-id');
+  });
+
+  it('relinks an attachment whose dashboard the find service cannot load on save', async () => {
+    setup({ findByIdStatus: 'error' });
+    const api = createMockDashboardApi('current-dashboard-id');
+    const { updateOrigin } = await harness.mountAttachment(
+      buildDashboardAttachment({ origin: 'deleted-dashboard-id' }),
+      api
+    );
+
+    api.onSave$.next({
+      previousDashboardId: 'current-dashboard-id',
+      dashboardId: 'current-dashboard-id',
+      dashboardState: attachmentDataToDashboardState({ title: 'Saved', panels: [] }),
+    });
+    await flushPromises();
+
+    expect(updateOrigin).toHaveBeenCalledWith('current-dashboard-id');
   });
 
   it('stops applying live updates once the dashboard API goes away', async () => {
