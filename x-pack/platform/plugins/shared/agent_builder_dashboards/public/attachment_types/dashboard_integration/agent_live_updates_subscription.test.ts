@@ -75,6 +75,19 @@ describe('createAgentLiveUpdatesSubscription', () => {
     expect(setState.mock.calls).toEqual([[APPLIED_STATE]]);
   });
 
+  it('follows the active conversation and ignores events from the previous one', () => {
+    const { emitConversation, emitChatEvent, setState } = subscribe(undefined, 'conversation-1');
+
+    emitConversation(buildActiveConversation({ id: 'conversation-2', attachments: [] }));
+    emitChatEvent('conversation-1', buildDashboardUpdatedEvent(buildDashboardAttachment()));
+
+    expect(setState).not.toHaveBeenCalled();
+
+    emitChatEvent('conversation-2', buildDashboardUpdatedEvent(buildDashboardAttachment()));
+
+    expect(setState.mock.calls).toEqual([[APPLIED_STATE]]);
+  });
+
   it('ignores other UI events and chat events', () => {
     const { emitChatEvent, setState, upsertAttachment } = subscribe(
       'dashboard-1',
