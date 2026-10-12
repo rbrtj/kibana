@@ -166,6 +166,19 @@ describe('dashboardSmlType', () => {
     expect(finder.close).toHaveBeenCalledTimes(1);
   });
 
+  it('closes the finder when listing fails', async () => {
+    const { smlType, context, savedObjectsClient } = setup();
+    const finder = mockFinder(savedObjectsClient, async function* () {
+      yield* [];
+      throw new Error('search_phase_execution_exception');
+    });
+
+    await expect(collect(smlType.list(context))).rejects.toThrow(
+      'search_phase_execution_exception'
+    );
+    expect(finder.close).toHaveBeenCalledTimes(1);
+  });
+
   it('builds search content from title, panels and sections', async () => {
     const { smlType, context, read, savedObjectsClient } = setup();
 
@@ -190,6 +203,41 @@ describe('dashboardSmlType', () => {
         '1 sections',
       ].join('\n'),
     });
+  });
+
+  it('falls back to the origin id, Lens attribute titles, and no panel token without an id', async () => {
+    const { smlType, context } = setup({
+      read: jest.fn().mockResolvedValue(
+        readResult({
+          panels: [
+            {
+              type: LENS_EMBEDDABLE_TYPE,
+              grid: { x: 0, y: 0, w: 24, h: 12 },
+              config: { attributes: { title: 'Request Rate' } },
+            },
+          ],
+        } as unknown as DashboardState)
+      ),
+    });
+
+    expect(await smlType.getSmlEntry('dashboard-1', context)).toEqual({
+      type: 'dashboard',
+      title: 'dashboard-1',
+      content: ['Request Rate', 'vis', '1 panels', '0 sections'].join('\n'),
+    });
+  });
+
+  it('returns undefined and warns when the dashboard read fails', async () => {
+    const { smlType, context, logger } = setup({
+      read: jest
+        .fn()
+        .mockRejectedValue(new Error('Saved object [dashboard/dashboard-1] not found')),
+    });
+
+    expect(await smlType.getSmlEntry('dashboard-1', context)).toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      "SML dashboard: failed to get data for 'dashboard-1': Saved object [dashboard/dashboard-1] not found"
+    );
   });
 
   it('converts saved dashboards into dashboard attachments with origin', async () => {
@@ -236,6 +284,18 @@ describe('dashboardSmlType', () => {
         ],
       },
     });
+  });
+
+  it('throws with the origin id when the dashboard read fails', async () => {
+    const { smlType, attachmentContext } = setup({
+      read: jest
+        .fn()
+        .mockRejectedValue(new Error('Saved object [dashboard/dashboard-1] not found')),
+    });
+
+    await expect(smlType.toAttachment(smlItem('dashboard-1'), attachmentContext)).rejects.toThrow(
+      "SML dashboard: failed to get data for 'dashboard-1': Saved object [dashboard/dashboard-1] not found"
+    );
   });
 
   it('getPermissions returns the ai_index:dashboard/read action', () => {
