@@ -5,6 +5,7 @@
  * 2.0.
  */
 
+import { omit } from 'lodash';
 import { httpServerMock, loggingSystemMock, savedObjectsClientMock } from '@kbn/core/server/mocks';
 import {
   hashContent,
@@ -16,6 +17,7 @@ import {
   type AttachmentPanel,
   type DashboardAttachmentData,
 } from '@kbn/agent-builder-dashboards-common';
+import type { AttachmentResolveContext } from '@kbn/agent-builder-server/attachments';
 import type { DashboardPluginStart } from '@kbn/dashboard-plugin/server';
 import { LENS_EMBEDDABLE_TYPE } from '@kbn/lens-common';
 import { createDashboardAttachmentType } from './dashboard';
@@ -162,7 +164,10 @@ describe('createDashboardAttachmentType', () => {
     it('returns undefined and warns without a saved objects client', async () => {
       const { resolve, context, logger, read } = setup();
 
-      const result = await resolve('dashboard-1', { ...context, savedObjectsClient: undefined });
+      const result = await resolve(
+        'dashboard-1',
+        omit(context, 'savedObjectsClient') as AttachmentResolveContext
+      );
 
       expect(result).toBeUndefined();
       expect(read).not.toHaveBeenCalled();
