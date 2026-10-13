@@ -117,7 +117,7 @@ export const DashboardCanvasContent = ({
     () =>
       Promise.resolve({
         getInitialInput: () => ({ ...dashboardState, viewMode: 'view' as const }),
-        changeSources: [AGENT_CHANGE_SOURCE],
+        changedBy: [AGENT_CHANGE_SOURCE],
       }),
     [dashboardState]
   );

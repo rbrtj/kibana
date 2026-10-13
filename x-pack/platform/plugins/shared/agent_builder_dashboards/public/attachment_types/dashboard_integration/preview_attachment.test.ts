@@ -51,7 +51,7 @@ describe('previewAttachmentInDashboard', () => {
       });
 
       expect(setState).toHaveBeenCalledWith(expect.objectContaining({ title: 'Agent dashboard' }), {
-        changeSources: ['agent'],
+        changedBy: ['agent'],
       });
       expect(navigate).not.toHaveBeenCalled();
     }
@@ -71,7 +71,7 @@ describe('previewAttachmentInDashboard', () => {
         dashboardId: 'dashboard-1',
         title: 'Agent dashboard',
         viewMode: 'edit',
-        changeSources: ['agent'],
+        changedBy: ['agent'],
       })
     );
     expect(setState).not.toHaveBeenCalled();

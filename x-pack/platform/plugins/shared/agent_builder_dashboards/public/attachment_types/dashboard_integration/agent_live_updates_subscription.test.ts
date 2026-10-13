@@ -89,7 +89,7 @@ describe('createAgentLiveUpdatesSubscription', () => {
 
     expect(getChatEvents$).toHaveBeenCalledWith('new-conversation');
     expect(setState).toHaveBeenCalledWith(expect.objectContaining({ title: 'Agent dashboard' }), {
-      changeSources: ['agent'],
+      changedBy: ['agent'],
     });
     subscription.unsubscribe();
   });

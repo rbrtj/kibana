@@ -547,7 +547,7 @@ describe('registerDashboardAttachmentUiDefinition', () => {
 
       expect(mockApi.setState).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Updated Dashboard' }),
-        { changeSources: ['agent'] }
+        { changedBy: ['agent'] }
       );
 
       cleanup?.();

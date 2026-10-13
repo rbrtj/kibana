@@ -22,6 +22,6 @@ export const handleEditInDashboard = async ({
     ...dashboardLocatorParams,
     dashboardId,
     viewMode: 'edit',
-    changeSources: [AGENT_CHANGE_SOURCE],
+    changedBy: [AGENT_CHANGE_SOURCE],
   });
 };

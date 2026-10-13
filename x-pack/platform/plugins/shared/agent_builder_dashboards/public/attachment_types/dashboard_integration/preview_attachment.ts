@@ -27,7 +27,7 @@ export const previewAttachmentInDashboard = async ({
   // a) Viewing saved dashboard + attachment linked to same dashboard -> apply state
   // Also handles both being undefined (unsaved dashboard, unlinked attachment)
   if (attachment.origin === currentSavedObjectId) {
-    dashboardApi.setState(dashboardState, { changeSources: [AGENT_CHANGE_SOURCE] });
+    dashboardApi.setState(dashboardState, { changedBy: [AGENT_CHANGE_SOURCE] });
     return;
   }
 
@@ -38,7 +38,7 @@ export const previewAttachmentInDashboard = async ({
 
   if (!currentSavedObjectId && !linkedDashboardExists) {
     // b) Viewing unsaved dashboard + attachment linked to deleted dashboard
-    dashboardApi.setState(dashboardState, { changeSources: [AGENT_CHANGE_SOURCE] });
+    dashboardApi.setState(dashboardState, { changedBy: [AGENT_CHANGE_SOURCE] });
     return;
   }
 
@@ -50,6 +50,6 @@ export const previewAttachmentInDashboard = async ({
     time_range: dashboardState.time_range,
     dashboardId: linkedDashboardExists ? attachment.origin : undefined,
     viewMode: 'edit',
-    changeSources: [AGENT_CHANGE_SOURCE],
+    changedBy: [AGENT_CHANGE_SOURCE],
   });
 };

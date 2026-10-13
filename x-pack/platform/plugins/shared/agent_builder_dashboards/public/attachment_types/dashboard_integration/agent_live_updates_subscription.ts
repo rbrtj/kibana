@@ -59,6 +59,6 @@ export const createAgentLiveUpdatesSubscription = ({
       }
 
       api.setState(attachmentDataToDashboardState(attachment.data), {
-        changeSources: [AGENT_CHANGE_SOURCE],
+        changedBy: [AGENT_CHANGE_SOURCE],
       });
     });

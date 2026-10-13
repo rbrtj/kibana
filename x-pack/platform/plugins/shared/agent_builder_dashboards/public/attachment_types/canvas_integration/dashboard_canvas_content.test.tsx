@@ -611,7 +611,7 @@ describe('DashboardCanvasAttachment', () => {
           viewMode: 'edit',
           title: 'Test Dashboard',
           description: 'Test Description',
-          changeSources: ['agent'],
+          changedBy: ['agent'],
         })
       );
     });
@@ -848,7 +848,7 @@ describe('DashboardCanvasAttachment', () => {
 
       const { getCreationOptions } = (DashboardRenderer as jest.Mock).mock.calls[0][0];
       await expect(getCreationOptions()).resolves.toMatchObject({
-        changeSources: ['agent'],
+        changedBy: ['agent'],
       });
     });
 
